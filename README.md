@@ -1,6 +1,6 @@
 # Second Brain · Workshop Challenge
 
-Auspiciado por **[Galo](https://soygalo.com)** · Organizado por **Martín Nico**
+Auspiciado por **[Galo](https://soygalo.com)** · Organizado por **Martín Pullitaro y Nicolas Silva**
 
 Este repo es donde los participantes del workshop **Second Brain** mandan sus soluciones al challenge. Cualquiera puede abrir un Pull Request con su propuesta.
 
