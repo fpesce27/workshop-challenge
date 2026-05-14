@@ -8,7 +8,7 @@ Este repo es donde los participantes del workshop **Second Brain** mandan sus so
 
 ## El contexto
 
-Hay un chatbot ya existente que vive en un número de WhatsApp. Una persona le reenvía a ese número, **uno por minuto**, comprobantes de transferencia bancaria. Cada comprobante corresponde a un cliente distinto.
+Hay un chatbot ya existente que vive en un número de WhatsApp. Una persona le reenvía a ese número, **uno por minuto**, comprobantes de transferencia bancaria de sus clientes. Son compras recurrentes: por ejemplo, un lunes pueden llegar 100 comprobantes de 100 clientes distintos, y el lunes siguiente vuelven a aparecer esos mismos 100 clientes con su comprobante correspondiente.
 
 El agente actual hace bien casi todo el trabajo:
 
@@ -22,6 +22,13 @@ El agente actual hace bien casi todo el trabajo:
 - `hacer 50/50`
 - múltiples razones sociales en la misma nota
 - otros casos no previstos
+
+**Las peculiaridades no siempre son universales.** "Armar factura A y B" puede ser un requisito puntual de un cliente y no aplicar a otros. La memoria tiene una doble dimensión:
+
+- **Por cliente** — quirks específicos de cada cliente recurrente (este cliente siempre factura mitad A / mitad B, este otro tiene dos razones sociales y elige según el monto, etc.).
+- **Global** — conceptos generales que el agente no entendía y que, una vez aclarados, pueden aplicar a varios clientes.
+
+Tu solución tiene que pensar cuándo una respuesta es genérica y cuándo es específica de un cliente.
 
 Para esos casos el agente **tiene que preguntar** la primera vez:
 
@@ -112,4 +119,4 @@ Abrí un **[Issue](../../issues)** en este repo. Es el canal oficial para pregun
 
 - **Workshop**: Second Brain
 - **Auspiciante**: [Galo](https://soygalo.com)
-- **Organizador**: Martín Nico
+- **Organizadores**: Martín Pullitaro y Nicolas Silva
