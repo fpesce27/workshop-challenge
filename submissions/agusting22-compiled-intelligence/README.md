@@ -170,6 +170,110 @@ Si 3+ clientes diferentes tienen reglas per-client con el mismo trigger y la mis
 
 ---
 
+## Preguntas anticipadas (FAQ)
+
+> Compilación de preguntas que probablemente surjan al leer la propuesta. Respuestas basadas en el diseño descrito en este submission. Para el detalle de cualquiera, ver [`ARCHITECTURE.md`](./ARCHITECTURE.md) o el panel **📖 ¿Cómo funciona?** del demo.
+
+### Escala y costos
+
+**¿Cómo escala el sistema a millones de comprobantes?**
+
+El cuello de botella es Postgres, y Postgres con los índices apropiados (B-tree para hashes, GIN para trigramas, IVFFlat para vectores) maneja millones de filas sin esfuerzo. A 1M de clientes con ~5 reglas promedio = ~5M filas, lookups en microsegundos. Si supera ~10M filas, particionamos por `client_cuit`. **El % de uso de LLM decrece con el tiempo** porque más reglas compiladas = más matches deterministas, así que la curva de costo es invertida (a más tráfico, más barato por unidad). Ver [§8 Escalabilidad técnica](./ARCHITECTURE.md#8-escalabilidad-técnica).
+
+**¿Cuánto cuesta a régimen?**
+
+A 100 clientes ~USD 35/mes. A 1K clientes ~USD 55/mes. A 100K clientes ~USD 250/mes. A 1M clientes ~USD 450/mes. Pasar de 100 a 1M (10.000× más volumen) solo multiplica el costo por ~13×. La mayor parte es Supabase (Postgres + pgvector); la API de LLM (Haiku) tiende a ser menor con el tiempo. Detalle y tabla en [§7 Costos a escala](./ARCHITECTURE.md#7-costos-a-escala).
+
+**¿Qué pasa si la API de IA (Anthropic/OpenAI) se cae?**
+
+El **95% del sistema sigue funcionando**. Los 3 niveles de la cascada (exact, fuzzy, semantic con embeddings precomputados) son Postgres puro, sin dependencia online del LLM. Solo se degradan dos cosas: (a) la inferencia con DNA para casos nuevos, y (b) la compilación de respuestas nuevas. La queue del Learning Pipeline acumula tareas pendientes y se procesan cuando vuelve la API. **En un RAG, en cambio, un outage del LLM detiene 100% del tráfico.**
+
+---
+
+### Funcionamiento concreto
+
+**Caso real: cliente recurrente que siempre compra sillas negras, pero un día el comprobante dice "sillas con patas". ¿Cómo se resuelve el error sin molestar al cliente?**
+
+Asumiendo que es una observación de facturación (no la descripción del producto, que la maneja el bot existente de Galo):
+
+1. Llega el comprobante → Lookup de Client DNA por CUIT → el `quirks_digest` dice algo como *"siempre 50/50 entre dos razones sociales"*.
+2. La cascada corre contra las reglas per-client + globales:
+   - **Exact match** del hash de "sillas con patas" → no hay regla con ese trigger. ❌
+   - **Fuzzy match** (trigramas) → no se parece a "sillas negras" lo suficiente. ❌
+   - **Semantic match** (concept tags) → "patas" no mapea a concepts conocidos del cliente. ❌
+3. **Inferencia con DNA**: el sistema le pasa a Haiku la observación + el digest del cliente y le pregunta *"¿qué acción inferís?"*. Si Haiku puede con confianza, ejecuta. Si no, pasa al paso 4.
+4. **Escalación al operador interno** (NUNCA al cliente). El operador ve un panel con contexto del cliente y responde: *"misma división de siempre"* o lo que corresponda.
+5. El **Learning Pipeline compila** esa respuesta como regla nueva (per-client para ese CUIT, trigger = "sillas con patas").
+6. **Próxima vez** que aparezca esa observación o variación: exact / fuzzy / semantic la captura, sin operador, sin LLM, en <5ms. 
+
+**El cliente envió un comprobante normal y recibió su confirmación. Nunca fue molestado**. El dialogue de aclaración fue 100% interno entre el bot y el operador.
+
+**¿Y si después aparece "sillas con patas plásticas" y el sistema lo confunde con la regla nueva?**
+
+Acá entra el **aprendizaje negativo (§12)**. El operador corrige el match incorrecto. El sistema, automáticamente:
+- Guarda "sillas con patas plásticas" como **contra-ejemplo** de la regla "sillas con patas" (no la corrige, marca la frontera).
+- Compila una regla nueva para "sillas con patas plásticas" con la acción correcta.
+
+Próxima vez que el matcher considere matchear contra "sillas con patas", chequea los contra-ejemplos: si la observación nueva es más cercana a un contra-ejemplo que al trigger positivo, rechaza el match y baja a la siguiente nivel de cascada. **Cada corrección del operador entrega valor en dos dimensiones**: regla nueva + frontera de regla vieja.
+
+**¿Y si el cliente cambia su patrón con el tiempo (antes pedía 50/50, ahora 60/40)?**
+
+Cuando el operador corrige el match: la regla vieja se **desactiva** (soft delete, no se borra para mantener audit trail) y se compila una regla nueva con la acción correcta. El `quirks_digest` del Client DNA se recompila para reflejar el cambio. Próximos comprobantes matchean la regla actualizada. Ver [§6.4 Cambio de patrón del cliente](./ARCHITECTURE.md#64-cambio-de-patrón-del-cliente-en-el-tiempo).
+
+---
+
+### Por qué esta propuesta y no otra
+
+**¿No es esto un rules engine clásico (tipo Drools) con un loop de aprendizaje?**
+
+La similitud existe — un rules engine también matchea reglas y ejecuta acciones. Tres diferencias clave:
+
+1. **Las reglas se compilan automáticamente desde lenguaje natural**, no las escribe un developer.
+2. **La cascada de 3 niveles ordenada por costo** (exact → fuzzy → semantic) es atípica en rules engines clásicos; típicamente solo hacen exact match. Captura variaciones lingüísticas sin pagar el costo del LLM.
+3. **Los dos diferenciales (§11 pre-compilación predictiva, §12 aprendizaje negativo)** son orthogonales al patrón de rules engines y son lo que un prompt genérico no propondría.
+
+Honestamente: el corazón es un rules engine + memory system. La novedad está en las extensiones específicas al dominio de Galo y en la cascada de costo creciente. La [nota honesta arriba](#sobre-la-solución-genérica-vs-esta-submission) lo reconoce abiertamente.
+
+**¿Es solo RAG con otro nombre?**
+
+No. RAG guarda texto y le pide al LLM que lo interprete en cada query. Compiled Intelligence guarda reglas estructuradas y las **ejecuta sin LLM** en el 95% de los casos. La diferencia es: RAG paga el costo de pensar cada vez; este sistema piensa una vez (al compilar) y ejecuta siempre (al matchear). Detalle completo en [§9 Por qué no es RAG](./ARCHITECTURE.md#9-por-qué-no-es-rag).
+
+**¿Por qué Postgres y no una vector DB dedicada (Pinecone, Weaviate)?**
+
+Postgres + pg_trgm + pgvector cubren todo en un solo sistema (relacional + texto + vectores). Una vector DB dedicada agrega red, latencia y operaciones extra sin beneficio claro hasta volúmenes que aún no tenemos. USD 25/mes de Supabase Pro alcanza para 10K clientes. Ver [ADR en §10](./ARCHITECTURE.md#10-decisiones-y-trade-offs).
+
+**¿Por qué Haiku y no Sonnet u Opus?**
+
+Las tareas que la IA hace son simples: clasificar binario (per-client vs global), extraer JSON con schema cerrado, resumir reglas en ~150 tokens. Sonnet/Opus serían over-engineering: 20-60× más caros, latencia mayor, sin beneficio medible. Si en algún path puntual hace falta más potencia, se sube solo ese path.
+
+---
+
+### Datos, errores y producción
+
+**¿Qué pasa si el operador se equivoca al responder?**
+
+Mitigaciones en capas:
+- Las reglas recién compiladas arrancan con confidence baja → el sistema pide confirmación antes de ejecutar autónomamente.
+- Cualquier corrección posterior desactiva la regla mala y compila una nueva (más el contra-ejemplo §12).
+- Las reglas con muchas correcciones se marcan como "volátiles" y se priorizan para revisión humana.
+
+**¿Qué pasa si Haiku misclasifica una regla per-client como global?**
+
+Acá entra la **cuarentena de promoción global (§5 + §6.7)**: el sistema **no** auto-promueve a global cuando 3 clientes coinciden. Pasa por un estado intermedio `candidate_global` que **no se aplica autónomamente** a otros clientes — solo se le propone al operador como sugerencia cuando viene un comprobante relevante. Después de ~5 validaciones humanas, pasa a global activa. Esto evita el envenenamiento progresivo que vendría de una cadena de misclasificaciones.
+
+**¿Cómo se borra el historial de un cliente que se va?**
+
+Soft delete con audit trail. Las reglas y el Client DNA se marcan `active = false`, no se purgan inmediatamente — por compliance y por si vuelve. Un job de retención puede purgarlos definitivamente después de N meses si la política lo requiere.
+
+**¿Cómo migran a producción desde este diseño?**
+
+Camino sugerido:
+1. **Semana 1-2:** levantar Postgres con `pg_trgm` + `pgvector` + el schema. Cargar Client DNA basado en lo que Galo ya tiene (CUITs + razones sociales + bancos). Correr el job de pre-compilación predictiva (§11) contra el historial de pedidos.
+2. **Semana 3-4:** dual-write — el bot existente sigue funcionando, pero también consulta el Rules Engine en paralelo y compara. Sin impacto en producción.
+3. **Semana 5+:** activar el Rules Engine como path principal con escalación al operador para casos sin match. Métricas: resolution_rate, % de correcciones, tiempo medio del operador por intervención.
+
+---
+
 ## En una línea
 
 > *"Si el conocimiento no cambia, no debería re-interpretarse. Compilalo una vez y ejecutalo siempre."*
