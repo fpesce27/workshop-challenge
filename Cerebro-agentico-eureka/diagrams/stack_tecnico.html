@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f8f8f8;
+    color: #1a1a2e;
+    font-family: 'Segoe UI', sans-serif;
+    padding: 32px;
+    min-height: 100vh;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 1.1rem;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 0.7rem;
+    color: #888;
+    margin-bottom: 36px;
+    letter-spacing: 1px;
+  }
+
+  .diagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  /* LAYER */
+  .layer {
+    width: 100%;
+    border-radius: 14px;
+    padding: 16px 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    margin-bottom: 4px;
+  }
+  .layer-label {
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    opacity: 0.5;
+  }
+  .layer-title {
+    font-size: 0.9rem;
+    font-weight: 800;
+    margin-bottom: 10px;
+  }
+
+  /* Colors por capa */
+  .layer-vendedor { background: #fff; border: 2px solid #e2e8f0; }
+  .layer-vendedor .layer-title { color: #1a1a2e; }
+  .layer-cerebro { background: #f5f3ff; border: 2px solid #6d5bd0; }
+  .layer-cerebro .layer-title { color: #6d5bd0; }
+  .layer-obsidian { background: #f0f0ff; border: 2px dashed #818cf8; }
+  .layer-obsidian .layer-title { color: #4338ca; }
+  .layer-galo { background: #f0fdf4; border: 2px solid #16a34a; }
+  .layer-galo .layer-title { color: #16a34a; }
+  .layer-erp { background: #fff; border: 2px solid #e2e8f0; }
+  .layer-erp .layer-title { color: #1a1a2e; }
+
+  /* Tools row */
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tool {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #1a1a2e;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .tool-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-wa { background: #25d366; }
+  .dot-llm { background: #6d5bd0; }
+  .dot-obs { background: #4338ca; }
+  .dot-cron { background: #d97706; }
+  .dot-erp { background: #64748b; }
+  .dot-green { background: #16a34a; }
+  .dot-gray { background: #94a3b8; }
+
+  /* Sub-bloques dentro del cerebro */
+  .sub-blocks { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .sub-block {
+    flex: 1;
+    min-width: 140px;
+    background: white;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border-left: 3px solid #6d5bd0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .sub-block.sueno { border-left-color: #d97706; }
+  .sub-block-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #6d5bd0;
+    margin-bottom: 2px;
+  }
+  .sub-block.sueno .sub-block-title { color: #d97706; }
+  .sub-block-desc {
+    font-size: 0.62rem;
+    color: #64748b;
+    line-height: 1.4;
+  }
+
+  /* Arrow */
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 6px 0;
+    gap: 2px;
+  }
+  .arrow-label {
+    font-size: 0.58rem;
+    color: #94a3b8;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* Obsidian nodos */
+  .obs-nodes { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .obs-node {
+    background: white;
+    border: 1px solid #c7d2fe;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.65rem;
+    color: #4338ca;
+    font-weight: 600;
+  }
+
+  /* ERP pills */
+  .erp-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .erp-pill {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.62rem;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  /* LLM badge */
+  .llm-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #ede9fe;
+    border: 1px solid #c4b5fd;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #6d5bd0;
+    margin-bottom: 10px;
+  }
+
+  .section-note {
+    font-size: 0.6rem;
+    color: #94a3b8;
+    margin-top: 6px;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<h1>Stack Técnico — Cerebro Agéntico para GALO</h1>
+<div class="subtitle">Arquitectura de capas · Herramientas · Flujo de datos</div>
+
+<div class="diagram">
+
+
+  <div class="layer layer-vendedor">
+    <div class="layer-label">Canal de entrada · Dos tipos de usuario</div>
+    <div class="layer-title">Cliente mayorista · Vendedor de calle</div>
+    <div class="tools">
+      <div class="tool"><span class="tool-dot dot-wa"></span>WhatsApp Business API</div>
+      <div class="tool"><span class="tool-dot dot-gray"></span>Comprobantes · Texto · Audio · Imagen · PDFs</div>
+    </div>
+    <div class="section-note">* Una sola arquitectura para los dos usuarios. El Cerebro identifica si es cliente o vendedor y adapta el contexto que inyecta y los Eurekas que activa. El funcionamiento no varía.</div>
+  </div>
+
+  <div class="arrow">
+    <svg width="20" height="24" viewBox="0 0 20 24"><line x1="10" y1="0" x2="10" y2="18" stroke="#cbd5e1" stroke-width="2"/><polygon points="4,14 10,24 16,14" fill="#cbd5e1"/></svg>
+    <div class="arrow-label">mensaje entrante</div>
+  </div>
+
+  <!-- CEREBRO -->
+  <div class="layer layer-cerebro">
+    <div class="layer-label">Cerebro Agéntico · Capa externa</div>
+    <div class="layer-title">El sistema que aprende</div>
+
+    <div class="llm-badge">
+      ⚡ LLM · Claude / GPT-4o / Gemini (API genérica)
+    </div>
+
+    <div class="sub-blocks">
+      <div class="sub-block">
+        <div class="sub-block-title">Pre-inyector</div>
+        <div class="sub-block-desc">Inicio de sesión. Consulta Obsidian. Inyecta contexto + instrucciones a GALO.</div>
+      </div>
+      <div class="sub-block">
+        <div class="sub-block-title">Consolidador</div>
+        <div class="sub-block-desc">Fin de sesión. Decide qué guardar. Actualiza nodos en Obsidian.</div>
+      </div>
+      <div class="sub-block sueno">
+        <div class="sub-block-title">Motor de Insights · Sueño</div>
+        <div class="sub-block-desc">Cron nocturno. Cruza patrones. Escribe Eurekas. 0 tokens en tiempo real.</div>
+      </div>
+    </div>
+
+    <div class="tools">
+      <div class="tool"><span class="tool-dot dot-llm"></span>Python · Orquestación de agentes</div>
+      <div class="tool"><span class="tool-dot dot-cron"></span>Cron job · Proceso nocturno</div>
+      <div class="tool"><span class="tool-dot dot-gray"></span>REST API · Webhooks</div>
+    </div>
+    <div class="section-note">GALO no sabe que el Cerebro existe. Solo recibe contexto enriquecido.</div>
+  </div>
+
+  <!-- OBSIDIAN (bidireccional) -->
+  <div class="arrow">
+    <div class="arrow-label">lee / escribe · bidireccional</div>
+    <svg width="20" height="28" viewBox="0 0 20 28"><line x1="10" y1="0" x2="10" y2="28" stroke="#818cf8" stroke-width="2"/><polygon points="4,6 10,0 16,6" fill="#818cf8"/><polygon points="4,22 10,28 16,22" fill="#818cf8"/></svg>
+  </div>
+
+  <div class="layer layer-obsidian">
+    <div class="layer-label">Red Neuronal Externa · Memoria persistente</div>
+    <div class="layer-title">Obsidian</div>
+    <div class="obs-nodes">
+      <div class="obs-node">/clientes/ · tipo: mayorista</div>
+      <div class="obs-node">/vendedores/ · tipo: vendedor</div>
+      <div class="obs-node">/patrones/</div>
+      <div class="obs-node">/insights/ · Eurekas</div>
+    </div>
+    <div class="tools">
+      <div class="tool"><span class="tool-dot dot-obs"></span>Obsidian Local REST API</div>
+      <div class="tool"><span class="tool-dot dot-obs"></span>Markdown + Frontmatter YAML</div>
+      <div class="tool"><span class="tool-dot dot-obs"></span>Grafo de links entre nodos</div>
+      <div class="tool"><span class="tool-dot dot-gray"></span>FTS · Búsqueda por texto</div>
+    </div>
+    <div class="section-note">Auditable por el equipo de GALO. Un nodo por cliente. Crece con cada sesión.</div>
+  </div>
+
+  <div class="arrow">
+    <svg width="20" height="24" viewBox="0 0 20 24"><line x1="10" y1="0" x2="10" y2="18" stroke="#cbd5e1" stroke-width="2"/><polygon points="4,14 10,24 16,14" fill="#cbd5e1"/></svg>
+    <div class="arrow-label">contexto + instrucciones + eurekas</div>
+  </div>
+
+  <!-- GALO -->
+  <div class="layer layer-galo">
+    <div class="layer-label">Bot existente · Sin modificar su core</div>
+    <div class="layer-title">GALO</div>
+    <div class="tools">
+      <div class="tool"><span class="tool-dot dot-green"></span>Motor propio de GALO (intacto)</div>
+      <div class="tool"><span class="tool-dot dot-wa"></span>WhatsApp Business API</div>
+      <div class="tool"><span class="tool-dot dot-green"></span>Procesamiento de pedidos · NLP</div>
+    </div>
+    <div class="section-note">El Cerebro le habla a GALO como si fuera un usuario más. Sin integración profunda.</div>
+  </div>
+
+  <div class="arrow">
+    <svg width="20" height="24" viewBox="0 0 20 24"><line x1="10" y1="0" x2="10" y2="18" stroke="#cbd5e1" stroke-width="2"/><polygon points="4,14 10,24 16,14" fill="#cbd5e1"/></svg>
+    <div class="arrow-label">pedido estructurado · limpio · validado</div>
+  </div>
+
+  <!-- ERP -->
+  <div class="layer layer-erp">
+    <div class="layer-label">Destino final</div>
+    <div class="layer-title">ERP / Logística / Facturación</div>
+    <div class="erp-pills">
+      <div class="erp-pill">SAP</div>
+      <div class="erp-pill">Oracle NetSuite</div>
+      <div class="erp-pill">Bind ERP</div>
+      <div class="erp-pill">Contabilium</div>
+      <div class="erp-pill">TiendaNube</div>
+      <div class="erp-pill">Odoo</div>
+      <div class="erp-pill">API propia</div>
+    </div>
+    <div class="section-note">Los que ya usa GALO hoy. El Cerebro no toca esta capa.</div>
+  </div>
+
+</div>
+
+</body>
+</html>
