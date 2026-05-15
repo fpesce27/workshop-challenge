@@ -470,6 +470,199 @@
     }
 
     /* ============================================================
+       File viewer modal (README / ARCHITECTURE / schema in-page)
+       ============================================================ */
+    .viewer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 150;
+      padding: 30px 40px;
+    }
+    .viewer-overlay.open { display: flex; }
+    .viewer-modal {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      width: 100%;
+      max-width: 1040px;
+      height: 100%;
+      max-height: calc(100vh - 60px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    }
+    .viewer-head {
+      flex: 0 0 auto;
+      padding: 14px 22px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: var(--panel-2);
+    }
+    .viewer-head .title {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .viewer-head .title b { color: var(--text); }
+    .viewer-actions { display: flex; gap: 8px; }
+    .viewer-actions a, .viewer-actions button {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      padding: 5px 12px;
+      font-size: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: inherit;
+    }
+    .viewer-actions a:hover, .viewer-actions button:hover {
+      color: var(--text);
+      border-color: var(--accent);
+    }
+    .viewer-body {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 28px 40px 48px;
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .viewer-body h1 {
+      font-size: 24px;
+      margin: 0 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .viewer-body h2 {
+      font-size: 19px;
+      margin: 28px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--line);
+    }
+    .viewer-body h3 { font-size: 15px; margin: 22px 0 8px; }
+    .viewer-body h4 { font-size: 13.5px; margin: 18px 0 6px; }
+    .viewer-body p { margin: 10px 0; }
+    .viewer-body ul, .viewer-body ol { padding-left: 24px; margin: 8px 0; }
+    .viewer-body li { margin-bottom: 4px; }
+    .viewer-body blockquote {
+      border-left: 3px solid var(--accent);
+      padding: 6px 14px;
+      margin: 12px 0;
+      background: rgba(88,166,255,0.07);
+      border-radius: 0 4px 4px 0;
+    }
+    .viewer-body blockquote p { margin: 4px 0; }
+    .viewer-body code {
+      background: var(--code-bg);
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 12.5px;
+      border: 1px solid var(--line);
+    }
+    .viewer-body pre {
+      background: var(--code-bg);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px 14px;
+      overflow-x: auto;
+      margin: 10px 0;
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+    .viewer-body pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      font-size: inherit;
+    }
+    .viewer-body table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 14px 0;
+      font-size: 13px;
+    }
+    .viewer-body th, .viewer-body td {
+      border: 1px solid var(--line);
+      padding: 7px 11px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .viewer-body th { background: var(--panel-2); }
+    .viewer-body a { color: var(--accent); }
+    .viewer-body a:hover { text-decoration: underline; }
+    .viewer-body hr {
+      border: none;
+      border-top: 1px solid var(--line);
+      margin: 22px 0;
+    }
+    .viewer-body .mermaid-block {
+      background: var(--panel-2);
+      border: 1px dashed var(--warn);
+      padding: 14px;
+      margin: 14px 0;
+      border-radius: 6px;
+    }
+    .viewer-body .mermaid-block-notice {
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--warn);
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .viewer-body .mermaid-block pre {
+      background: var(--code-bg);
+      margin: 0;
+      font-size: 11.5px;
+    }
+    .viewer-body .fetch-error {
+      background: var(--warn-bg);
+      border-left: 3px solid var(--warn);
+      padding: 16px 18px;
+      border-radius: 6px;
+      margin: 14px 0;
+    }
+    .viewer-body .fetch-error h3 {
+      color: var(--warn);
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+    .viewer-body .fetch-error pre {
+      font-size: 11.5px;
+      margin: 8px 0;
+    }
+    .viewer-body .fetch-error .open-tab-btn {
+      display: inline-block;
+      background: var(--accent);
+      color: #0b0f15;
+      padding: 8px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    .viewer-body .fetch-error .open-tab-btn:hover {
+      background: var(--accent-2);
+      text-decoration: none;
+    }
+    .viewer-body .loading {
+      color: var(--muted);
+      font-style: italic;
+      padding: 40px 0;
+      text-align: center;
+    }
+
+    /* ============================================================
        Help button + Explanation drawer
        ============================================================ */
     .help-btn {
@@ -951,6 +1144,24 @@
 
     </aside>
   </main>
+
+  <!-- ============================================================
+       File viewer modal (README / ARCHITECTURE / schema in-page)
+       ============================================================ -->
+  <div class="viewer-overlay" id="viewerOverlay" role="dialog" aria-modal="true" aria-labelledby="viewerTitle">
+    <div class="viewer-modal">
+      <div class="viewer-head">
+        <div class="title" id="viewerTitle">Viendo</div>
+        <div class="viewer-actions">
+          <a id="viewerOpenTab" href="#" target="_blank" rel="noopener">Abrir en pestaña ↗</a>
+          <button id="viewerClose" type="button">✕ Cerrar</button>
+        </div>
+      </div>
+      <div class="viewer-body" id="viewerBody">
+        <p class="loading">Cargando…</p>
+      </div>
+    </div>
+  </div>
 
   <!-- ============================================================
        Explanation drawer (toggleable side panel)
@@ -1953,10 +2164,241 @@
       });
       closeBtn.addEventListener("click", closeDrawer);
       backdrop.addEventListener("click", closeDrawer);
+
+      // File viewer modal (intercepta clicks en README / ARCHITECTURE / schema.sql)
+      const viewerOverlay   = document.getElementById("viewerOverlay");
+      const viewerTitle     = document.getElementById("viewerTitle");
+      const viewerBody      = document.getElementById("viewerBody");
+      const viewerClose     = document.getElementById("viewerClose");
+      const viewerOpenTab   = document.getElementById("viewerOpenTab");
+
+      async function openViewer(file) {
+        viewerTitle.innerHTML = `Viendo: <b>${escapeHtml(file)}</b>`;
+        viewerOpenTab.href = "./" + file;
+        viewerBody.innerHTML = '<p class="loading">Cargando…</p>';
+        viewerOverlay.classList.add("open");
+
+        try {
+          const res = await fetch("./" + file);
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const text = await res.text();
+          if (file.endsWith(".sql") || file.endsWith(".ts") || file.endsWith(".mmd")) {
+            viewerBody.innerHTML = `<pre><code>${escapeHtml(text)}</code></pre>`;
+          } else {
+            viewerBody.innerHTML = renderMarkdown(text);
+          }
+          viewerBody.scrollTop = 0;
+        } catch (err) {
+          viewerBody.innerHTML =
+            '<div class="fetch-error">' +
+              `<h3>No se pudo cargar ${escapeHtml(file)} en el modal</h3>` +
+              '<p>Tu browser bloquea <code>fetch()</code> sobre el protocolo <code>file://</code> por razones de seguridad. Esto pasa cuando abrís el HTML con doble click. Tenés dos opciones:</p>' +
+              '<p><b>Opción 1 — servirlo con un servidor estático local</b> (recomendado, mantiene el modal funcionando):</p>' +
+              '<pre>cd "' + escapeHtml(decodeURI(window.location.pathname.replace(/[^/]+$/, ""))) + '"\npython3 -m http.server 8000</pre>' +
+              '<p>Después abrí <code>http://localhost:8000/demo.html</code> y recargá.</p>' +
+              `<p><b>Opción 2 — abrir el archivo en una pestaña nueva</b> (no perdés esta página):</p>` +
+              `<a class="open-tab-btn" href="./${escapeHtml(file)}" target="_blank" rel="noopener">Abrir ${escapeHtml(file)} en pestaña nueva ↗</a>` +
+            '</div>';
+        }
+      }
+      function closeViewer() {
+        viewerOverlay.classList.remove("open");
+      }
+      viewerClose.addEventListener("click", closeViewer);
+      viewerOverlay.addEventListener("click", (e) => {
+        if (e.target === viewerOverlay) closeViewer();
+      });
+
+      // Intercept header link clicks
+      document.querySelectorAll('.header-links a[href^="./"]').forEach((link) => {
+        link.addEventListener("click", (e) => {
+          const href = link.getAttribute("href");
+          if (!href || !href.startsWith("./")) return;
+          const file = href.slice(2);
+          if (/\.(md|sql|ts|mmd)$/.test(file)) {
+            e.preventDefault();
+            openViewer(file);
+          }
+        });
+      });
+
+      // Global Escape: cierra cualquier overlay que esté abierto
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && drawer.classList.contains("open")) closeDrawer();
+        if (e.key !== "Escape") return;
+        if (viewerOverlay.classList.contains("open")) { closeViewer(); return; }
+        if (drawer.classList.contains("open")) { closeDrawer(); }
       });
     });
+
+    // ====================================================================
+    // Markdown renderer mini (sin librería externa, sin CDN)
+    // Soporta lo que usamos en README/ARCHITECTURE: headings, code fences,
+    // mermaid blocks, tables GFM, lists, blockquotes, links, bold, italic,
+    // inline code, hr. No soporta: nested lists, images, html crudo, footnotes.
+    // ====================================================================
+
+    function renderMarkdown(md) {
+      md = String(md).replace(/\r\n/g, "\n");
+
+      // Paso 1: extraer code fences (mermaid + otros) para protegerlos de regex inline
+      const fences = [];
+      md = md.replace(/```(\w*)\n([\s\S]*?)\n```/g, (_, lang, body) => {
+        const i = fences.length;
+        let html;
+        if (lang === "mermaid") {
+          html =
+            '<div class="mermaid-block">' +
+              '<div class="mermaid-block-notice">Diagrama Mermaid — abrí el archivo en GitHub para verlo renderizado</div>' +
+              `<pre><code>${escapeHtml(body)}</code></pre>` +
+            '</div>';
+        } else {
+          html = `<pre><code>${escapeHtml(body)}</code></pre>`;
+        }
+        fences.push(html);
+        return " FENCE" + i + " ";
+      });
+
+      const lines = md.split("\n");
+      const out = [];
+      let i = 0;
+
+      const isListLine     = (s) => /^\s*[-*]\s+/.test(s);
+      const isOrderedLine  = (s) => /^\s*\d+\.\s+/.test(s);
+      const isBlockquote   = (s) => /^>\s?/.test(s);
+      const isTableSep     = (s) => /^\s*\|?\s*:?-{3,}:?(\s*\|\s*:?-{3,}:?)+\s*\|?\s*$/.test(s);
+      const isFencePh      = (s) => /^ FENCE\d+ $/.test(s);
+
+      while (i < lines.length) {
+        const line = lines[i];
+
+        // Code fence placeholder
+        if (isFencePh(line)) {
+          const m = line.match(/^ FENCE(\d+) $/);
+          out.push(fences[parseInt(m[1], 10)]);
+          i++; continue;
+        }
+
+        // Blank line
+        if (!line.trim()) { i++; continue; }
+
+        // Headings
+        const mH = line.match(/^(#{1,6})\s+(.*)$/);
+        if (mH) {
+          out.push(`<h${mH[1].length}>${inlineMd(mH[2])}</h${mH[1].length}>`);
+          i++; continue;
+        }
+
+        // HR
+        if (/^---+\s*$/.test(line)) {
+          out.push("<hr>");
+          i++; continue;
+        }
+
+        // Table (header line + sep line + rows)
+        if (line.includes("|") && i + 1 < lines.length && isTableSep(lines[i + 1])) {
+          const headers = parseTableRow(line);
+          i += 2;
+          const rows = [];
+          while (i < lines.length && lines[i].includes("|") && lines[i].trim() && !isFencePh(lines[i])) {
+            rows.push(parseTableRow(lines[i]));
+            i++;
+          }
+          let h = "<table><thead><tr>";
+          headers.forEach((c) => { h += `<th>${inlineMd(c)}</th>`; });
+          h += "</tr></thead><tbody>";
+          rows.forEach((row) => {
+            h += "<tr>";
+            row.forEach((c) => { h += `<td>${inlineMd(c)}</td>`; });
+            h += "</tr>";
+          });
+          h += "</tbody></table>";
+          out.push(h);
+          continue;
+        }
+
+        // Blockquote (multi-line)
+        if (isBlockquote(line)) {
+          const bq = [];
+          while (i < lines.length && (isBlockquote(lines[i]) || (lines[i].trim() && !isListLine(lines[i]) && !isOrderedLine(lines[i]) && !lines[i].match(/^#{1,6}\s/) && !/^---+\s*$/.test(lines[i])))) {
+            if (!isBlockquote(lines[i]) && !lines[i].trim()) break;
+            bq.push(lines[i].replace(/^>\s?/, ""));
+            i++;
+            // Detenerse en blank line
+            if (i < lines.length && !lines[i].trim()) break;
+          }
+          out.push(`<blockquote>${renderMarkdown(bq.join("\n"))}</blockquote>`);
+          continue;
+        }
+
+        // Unordered list
+        if (isListLine(line)) {
+          const items = [];
+          while (i < lines.length && isListLine(lines[i])) {
+            items.push(lines[i].replace(/^\s*[-*]\s+/, ""));
+            i++;
+          }
+          out.push(`<ul>${items.map((it) => `<li>${inlineMd(it)}</li>`).join("")}</ul>`);
+          continue;
+        }
+
+        // Ordered list
+        if (isOrderedLine(line)) {
+          const items = [];
+          while (i < lines.length && isOrderedLine(lines[i])) {
+            items.push(lines[i].replace(/^\s*\d+\.\s+/, ""));
+            i++;
+          }
+          out.push(`<ol>${items.map((it) => `<li>${inlineMd(it)}</li>`).join("")}</ol>`);
+          continue;
+        }
+
+        // Paragraph: consume consecutive non-blank lines until hitting a block element
+        const para = [];
+        while (i < lines.length && lines[i].trim() &&
+               !lines[i].match(/^(#{1,6}\s|>)/) &&
+               !/^---+\s*$/.test(lines[i]) &&
+               !isListLine(lines[i]) && !isOrderedLine(lines[i]) &&
+               !isFencePh(lines[i]) &&
+               !(lines[i].includes("|") && i + 1 < lines.length && isTableSep(lines[i + 1]))) {
+          para.push(lines[i]);
+          i++;
+        }
+        if (para.length) out.push(`<p>${inlineMd(para.join(" "))}</p>`);
+      }
+
+      return out.join("\n");
+    }
+
+    function parseTableRow(line) {
+      return line.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((c) => c.trim());
+    }
+
+    function inlineMd(text) {
+      // Inline code primero, protegido
+      const codes = [];
+      text = text.replace(/`([^`]+)`/g, (_, c) => {
+        codes.push(`<code>${escapeHtml(c)}</code>`);
+        return "C" + (codes.length - 1) + "";
+      });
+
+      // Escape HTML
+      text = escapeHtml(text);
+
+      // Links [text](url) — before bold/italic to handle nested formatting in link text later
+      text = text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, t, u) => {
+        return `<a href="${u}" target="_blank" rel="noopener">${t}</a>`;
+      });
+
+      // Bold **text**
+      text = text.replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>");
+      // Italic *text* (asterisco simple, no asterisco doble)
+      text = text.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, "$1<em>$2</em>");
+
+      // Restaurar inline code
+      text = text.replace(/C(\d+)/g, (_, n) => codes[parseInt(n, 10)]);
+
+      return text;
+    }
 
     // Expose for console testing (AC del demo):
     //   _demo.resolve("20-12345678-9", "armar factura A y B")     → exact
