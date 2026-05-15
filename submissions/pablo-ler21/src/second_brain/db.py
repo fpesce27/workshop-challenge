@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -38,6 +39,39 @@ def get_connection(db_path: Optional[Path] = None) -> Generator[sqlite3.Connecti
         conn.rollback()
         raise
     finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Conexión persistente para el hot path de lecturas
+# sqlite3.connect() en Windows tiene overhead de filesystem por llamada.
+# Para lecturas del motor de reglas, reutilizamos la misma conexión.
+# ---------------------------------------------------------------------------
+
+_read_conns: dict[str, sqlite3.Connection] = {}
+_read_conns_lock = threading.Lock()
+
+
+def get_read_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
+    """Retorna una conexión persistente para lecturas. Thread-safe."""
+    path = str(db_path or get_db_path())
+    with _read_conns_lock:
+        if path not in _read_conns:
+            conn = sqlite3.connect(path, check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA cache_size=-65536")  # 64MB de cache de páginas
+            _read_conns[path] = conn
+        return _read_conns[path]
+
+
+def close_read_connection(db_path: Optional[Path] = None) -> None:
+    """Cierra y elimina la conexión persistente — útil en teardown de tests."""
+    path = str(db_path or get_db_path())
+    with _read_conns_lock:
+        conn = _read_conns.pop(path, None)
+    if conn:
         conn.close()
 
 
@@ -121,12 +155,13 @@ def init_db(db_path: Optional[Path] = None) -> None:
 
 def rule_to_row(rule) -> dict:
     """Convierte un modelo Rule a un dict apto para INSERT/UPDATE."""
+    from second_brain.normalizer import to_db_int
     return {
         "id": rule.id,
         "scope": rule.scope,
         "client_id": rule.client_id,
         "pattern_canonical": rule.pattern_canonical,
-        "pattern_simhash": rule.pattern_simhash,
+        "pattern_simhash": to_db_int(rule.pattern_simhash),
         "action_json": rule.action.model_dump_json(),
         "confidence": rule.confidence,
         "hit_count": rule.hit_count,
@@ -140,15 +175,24 @@ def rule_to_row(rule) -> dict:
 def row_to_rule(row: sqlite3.Row):
     """Convierte una fila de SQLite al modelo Rule."""
     from second_brain.models import Rule
+    from second_brain.normalizer import from_db_int
 
     data = dict(row)
     action_data = json.loads(data.pop("action_json"))
+    # Recuperar los campos de tiempo (vienen como string ISO desde SQLite)
+    created_at = datetime.fromisoformat(data.pop("created_at"))
+    last_used_raw = data.pop("last_used_at")
+    last_used_at = datetime.fromisoformat(last_used_raw) if last_used_raw else None
+    last_modified_at = datetime.fromisoformat(data.pop("last_modified_at"))
+    # Convertir simhash de signed (SQLite) a unsigned (Python)
+    data["pattern_simhash"] = from_db_int(data["pattern_simhash"])
+
     return Rule(
         **data,
         action=action_data,
-        created_at=datetime.fromisoformat(data["created_at"]),
-        last_used_at=datetime.fromisoformat(data["last_used_at"]) if data.get("last_used_at") else None,
-        last_modified_at=datetime.fromisoformat(data["last_modified_at"]),
+        created_at=created_at,
+        last_used_at=last_used_at,
+        last_modified_at=last_modified_at,
     )
 
 
