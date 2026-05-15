@@ -31,3 +31,7 @@ second_brain.db-shm
 .coverage
 htmlcov/
 
+# Archivos de planificacion interna
+PLAN.md
+DEFENSA.md
+

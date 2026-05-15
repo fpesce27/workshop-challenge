@@ -12,7 +12,7 @@ Sistema de memoria determinístico para el agente de WhatsApp de Galo. Aprende d
 # Clonar e instalar
 uv sync
 
-# Poblar la DB con datos de demo (10 clientes, 30 reglas, 5 invalidaciones)
+# Poblar la DB con datos de demo (10 clientes, 21 reglas, 5 invalidaciones)
 uv run python scripts/seed_demo.py
 
 # Levantar la API
