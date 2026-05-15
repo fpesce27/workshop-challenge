@@ -470,6 +470,119 @@
     }
 
     /* ============================================================
+       FAQ section (in-page, expandable cards)
+       ============================================================ */
+    .faq-section {
+      max-width: 1480px;
+      margin: 8px auto 24px;
+      padding: 0 28px 24px;
+    }
+    .faq-head { margin: 24px 0 16px; }
+    .faq-head h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0.3px;
+      color: var(--text);
+    }
+    .faq-head p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .faq-group { margin-bottom: 22px; }
+    .faq-group h3 {
+      margin: 0 0 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 6px;
+    }
+    .faq-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+      gap: 10px;
+    }
+    .faq-item {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      transition: border-color 150ms, background 150ms;
+    }
+    .faq-item[open] {
+      border-color: var(--accent);
+      background: var(--panel-2);
+    }
+    .faq-item summary {
+      cursor: pointer;
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      list-style: none;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      user-select: none;
+      line-height: 1.4;
+    }
+    .faq-item summary::-webkit-details-marker,
+    .faq-item summary::marker { display: none; content: ""; }
+    .faq-item summary::before {
+      content: "+";
+      display: inline-block;
+      width: 18px;
+      min-width: 18px;
+      height: 18px;
+      text-align: center;
+      line-height: 18px;
+      background: var(--panel-2);
+      color: var(--accent);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-top: 1px;
+      transition: background 150ms, color 150ms, border-color 150ms;
+    }
+    .faq-item[open] summary::before {
+      content: "−";
+      background: var(--accent);
+      color: #0b0f15;
+      border-color: var(--accent);
+    }
+    .faq-item summary:hover { color: var(--accent); }
+    .faq-item summary:hover::before { border-color: var(--accent); }
+
+    .faq-body {
+      padding: 4px 18px 16px 46px;
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .faq-body p { margin: 10px 0; }
+    .faq-body p:first-child { margin-top: 8px; }
+    .faq-body strong, .faq-body b { color: var(--accent-2); font-weight: 600; }
+    .faq-body em, .faq-body i { color: var(--text); font-style: italic; }
+    .faq-body code {
+      background: var(--code-bg);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 12px;
+      border: 1px solid var(--line);
+      font-family: var(--mono);
+    }
+    .faq-body ol, .faq-body ul {
+      padding-left: 20px;
+      margin: 8px 0;
+    }
+    .faq-body li { margin-bottom: 4px; }
+    .faq-body a { color: var(--accent); text-decoration: none; }
+    .faq-body a:hover { text-decoration: underline; }
+
+    /* ============================================================
        File viewer modal (README / ARCHITECTURE / schema in-page)
        ============================================================ */
     .viewer-overlay {
@@ -1144,6 +1257,170 @@
 
     </aside>
   </main>
+
+  <!-- ============================================================
+       FAQ — preguntas anticipadas, visibles abajo del demo
+       ============================================================ -->
+  <section class="faq-section" id="faq">
+    <div class="faq-head">
+      <h2>Preguntas anticipadas</h2>
+      <p>Las dudas más probables al evaluar esta propuesta. Clickeá cada pregunta para ver la respuesta.</p>
+    </div>
+
+    <div class="faq-group">
+      <h3>Escala y costos</h3>
+      <div class="faq-grid">
+        <details class="faq-item">
+          <summary>¿Cómo escala el sistema a millones de comprobantes?</summary>
+          <div class="faq-body">
+            <p>El cuello de botella es <b>Postgres</b>, y con los índices apropiados (B-tree para hashes, GIN para trigramas, IVFFlat para vectores) maneja millones de filas sin esfuerzo. A 1M de clientes con ~5 reglas promedio = ~5M filas, lookups en microsegundos. Si supera ~10M filas, particionamos por <code>client_cuit</code>.</p>
+            <p>Y lo más importante: el <b>% de uso de LLM decrece con el tiempo</b> porque más reglas compiladas = más matches deterministas. La curva de costo es invertida — a más tráfico, más barato por unidad.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Cuánto cuesta el sistema a régimen?</summary>
+          <div class="faq-body">
+            <p>A 100 clientes ~USD 35/mes. A 1K clientes ~USD 55/mes. A 100K clientes ~USD 250/mes. A 1M clientes ~USD 450/mes.</p>
+            <p>Pasar de 100 a 1M de clientes (10.000× más volumen) solo multiplica el costo por <b>~13×</b>. La mayor parte es Supabase (Postgres + pgvector); la API de Anthropic Haiku tiende a usarse menos con el tiempo.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Qué pasa si la API de IA (Anthropic / OpenAI) se cae?</summary>
+          <div class="faq-body">
+            <p>El <b>~95% del sistema sigue funcionando</b>. Los 3 niveles de la cascada son Postgres puro, sin dependencia online del LLM. Solo se degradan dos cosas: (a) la inferencia con DNA para casos genuinamente nuevos, y (b) la compilación de respuestas nuevas (la queue del Learning Pipeline acumula tareas y se procesan cuando vuelve la API).</p>
+            <p>En un RAG, en cambio, un outage del LLM detiene <b>100%</b> del tráfico.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="faq-group">
+      <h3>Funcionamiento concreto</h3>
+      <div class="faq-grid">
+        <details class="faq-item">
+          <summary>Cliente que siempre compra sillas negras, pero un día el comprobante dice "sillas con patas". ¿Cómo se resuelve sin molestar al cliente?</summary>
+          <div class="faq-body">
+            <p>Asumiendo que es una observación de facturación (no la descripción del producto):</p>
+            <ol>
+              <li>Llega el comprobante → lookup del Client DNA por CUIT → su <code>quirks_digest</code> dice algo como <em>"siempre 50/50 entre dos razones sociales"</em>.</li>
+              <li>La cascada corre: <b>exact</b> falla, <b>fuzzy</b> falla (no se parece a "sillas negras"), <b>semantic</b> falla ("patas" no mapea a concepts conocidos).</li>
+              <li><b>Inferencia con DNA</b>: el sistema le pasa a Haiku la observación + el digest del cliente. Si infiere con confianza, ejecuta. Si no...</li>
+              <li><b>Escalación al operador interno</b> (NUNCA al cliente). El operador responde: <em>"misma división de siempre"</em>.</li>
+              <li>El <b>Learning Pipeline</b> compila esa respuesta como regla per-client. Próxima vez: exact match, &lt;1ms, sin operador.</li>
+            </ol>
+            <p>El cliente envió un comprobante normal y recibió su confirmación. <b>Nunca fue molestado</b>.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Y si después aparece "sillas con patas plásticas" y el sistema lo confunde con la regla nueva?</summary>
+          <div class="faq-body">
+            <p>Acá entra el <b>aprendizaje negativo (§12)</b>. El operador corrige el match incorrecto. El sistema automáticamente:</p>
+            <ul>
+              <li>Guarda <em>"sillas con patas plásticas"</em> como <b>contra-ejemplo</b> de la regla "sillas con patas" (no corrige la vieja, marca su frontera).</li>
+              <li>Compila una <b>regla nueva</b> para "sillas con patas plásticas" con la acción correcta.</li>
+            </ul>
+            <p>Próxima vez que el matcher considere matchear contra "sillas con patas", chequea los contra-ejemplos: si la observación es más cercana a un contra-ejemplo que al trigger positivo, <b>rechaza el match</b> y baja al siguiente nivel. Cada corrección del operador entrega valor en dos dimensiones: regla nueva + frontera de regla vieja.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Qué pasa si un cliente cambia su patrón con el tiempo (antes pedía 50/50, ahora 60/40)?</summary>
+          <div class="faq-body">
+            <p>Cuando el operador corrige el match: la regla vieja se <b>desactiva</b> (<em>soft delete</em>, no se borra para mantener audit trail) y se compila una regla nueva con la acción correcta. El <code>quirks_digest</code> del Client DNA se recompila para reflejar el cambio.</p>
+            <p>Próximos comprobantes matchean la regla actualizada. El historial de reglas inactivas queda para auditoría pero no participa del matching.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="faq-group">
+      <h3>Por qué esta propuesta y no otra</h3>
+      <div class="faq-grid">
+        <details class="faq-item">
+          <summary>¿No es esto un rules engine clásico (tipo Drools) con un loop de aprendizaje?</summary>
+          <div class="faq-body">
+            <p>La similitud existe — un rules engine también matchea reglas y ejecuta acciones. Tres diferencias:</p>
+            <ol>
+              <li>Las reglas se compilan <b>automáticamente desde lenguaje natural</b>, no las escribe un developer.</li>
+              <li>La <b>cascada de 3 niveles ordenada por costo</b> (exact → fuzzy → semantic) es atípica en rules engines clásicos. Captura variaciones lingüísticas sin pagar el costo del LLM en cada query.</li>
+              <li>Los dos <b>diferenciales §11 (pre-compilación predictiva) y §12 (aprendizaje negativo)</b> son ortogonales al patrón clásico — son lo que un prompt genérico no propondría.</li>
+            </ol>
+            <p>Honestamente: el corazón <em>es</em> un rules engine + memory system. La novedad está en las extensiones específicas al dominio de Galo. La nota honesta del README lo reconoce abiertamente.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Es solo RAG con otro nombre?</summary>
+          <div class="faq-body">
+            <p>No. RAG guarda <b>texto</b> y le pide al LLM que lo <b>interprete en cada query</b>. Compiled Intelligence guarda <b>reglas estructuradas</b> y las <b>ejecuta sin LLM</b> en el 95% de los casos.</p>
+            <p>La diferencia operativa: RAG paga el costo de pensar cada vez. Este sistema piensa una vez (al compilar) y ejecuta siempre (al matchear). Diferentes filosofías → diferentes curvas de costo, latencia, y tolerancia a fallos.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Por qué Postgres y no una vector DB dedicada (Pinecone, Weaviate)?</summary>
+          <div class="faq-body">
+            <p>Postgres + <code>pg_trgm</code> + <code>pgvector</code> cubren todo en un solo sistema (relacional + texto + vectores). Una vector DB dedicada agrega red, latencia y operaciones extras sin beneficio claro hasta volúmenes muy grandes. USD 25/mes de Supabase Pro alcanza hasta 10K clientes.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Por qué Haiku y no Sonnet u Opus?</summary>
+          <div class="faq-body">
+            <p>Las tareas que la IA hace son simples: clasificar binario (per-client vs global), extraer JSON con schema cerrado, resumir reglas en ~150 tokens. Sonnet/Opus serían over-engineering: <b>20-60× más caros</b>, latencia mayor, sin beneficio medible.</p>
+            <p>Si en algún path puntual hace falta más potencia, se sube solo ese path. No hay razón para pagar Opus para clasificar "per_client" vs "global".</p>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="faq-group">
+      <h3>Datos, errores y producción</h3>
+      <div class="faq-grid">
+        <details class="faq-item">
+          <summary>¿Qué pasa si el operador responde mal una pregunta del bot?</summary>
+          <div class="faq-body">
+            <p>Mitigaciones en capas:</p>
+            <ul>
+              <li>Las reglas recién compiladas arrancan con <code>confidence</code> baja → el sistema pide confirmación antes de ejecutar autónomamente.</li>
+              <li>Cualquier corrección posterior desactiva la regla mala y compila una nueva (más el contra-ejemplo §12).</li>
+              <li>Las reglas con muchas correcciones se marcan como <em>volátiles</em> y se priorizan para revisión humana.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Qué pasa si Haiku misclasifica una regla per-client como global (o viceversa)?</summary>
+          <div class="faq-body">
+            <p>Acá entra la <b>cuarentena de promoción global (§5 + §6.7)</b>: el sistema <b>no</b> auto-promueve a global cuando 3 clientes coinciden. Pasa por un estado intermedio <code>candidate_global</code> que no se aplica autónomamente a otros clientes — solo se le propone al operador como sugerencia cuando viene un comprobante relevante. Después de ~5 validaciones humanas, pasa a global activa.</p>
+            <p>Esto evita el <b>envenenamiento progresivo</b> que vendría de una cadena de misclasificaciones.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Cómo se borra el historial de un cliente que se va?</summary>
+          <div class="faq-body">
+            <p><em>Soft delete</em> con audit trail. Las reglas y el Client DNA se marcan <code>active = false</code>, no se purgan inmediatamente — por compliance y por si el cliente vuelve. Un job de retención puede purgarlos definitivamente después de N meses si la política lo requiere.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Cómo migraríamos a producción desde este diseño?</summary>
+          <div class="faq-body">
+            <p>Rollout sugerido en 3 fases:</p>
+            <ol>
+              <li><b>Semana 1-2:</b> levantar Postgres + extensiones + schema. Cargar Client DNA basado en lo que Galo ya tiene. Correr el job de pre-compilación predictiva (§11) sobre el historial de pedidos.</li>
+              <li><b>Semana 3-4:</b> <em>dual-write</em>: el bot existente sigue funcionando, pero también consulta el Rules Engine en paralelo y compara. Sin impacto en producción real.</li>
+              <li><b>Semana 5+:</b> activar el Rules Engine como path principal con escalación al operador para casos sin match. Métricas: <code>resolution_rate</code>, % de correcciones, tiempo medio del operador por intervención.</li>
+            </ol>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
 
   <!-- ============================================================
        File viewer modal (README / ARCHITECTURE / schema in-page)
