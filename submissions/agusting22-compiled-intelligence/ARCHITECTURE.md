@@ -9,7 +9,7 @@
 
 Este documento describe el sistema completo en ~700 líneas. Si solo querés entender qué hace este sistema y qué lo diferencia, leé esto:
 
-**El núcleo (§1-§10):** un sistema de memoria que **compila** las aclaraciones del operador en reglas determinísticas, en vez de guardarlas como texto para que un LLM las relea cada vez. La cascada de 3 niveles (exact → fuzzy → semantic) resuelve el 95%+ de los casos sin LLM. *La parte de "compilar respuestas humanas en reglas reutilizables" es la respuesta razonable que cualquier IA propondría a este challenge.*
+**El núcleo (§1-§10):** un sistema de memoria que **compila** las aclaraciones del operador en reglas determinísticas, en vez de guardarlas como texto para que un LLM las relea cada vez. La cascada de 3 niveles (exacta → aproximada → semántica) resuelve el 95%+ de los casos sin LLM. *La parte de "compilar respuestas humanas en reglas reutilizables" es la respuesta razonable que cualquier IA propondría a este challenge.*
 
 **Los dos diferenciales (§11 y §12 — lo que un prompt genérico NO propone):**
 
@@ -143,15 +143,15 @@ erDiagram
 
 Primera línea de procesamiento. Recibe `(cuit, observacion)` y devuelve `Rule | null`. Funciona como un lookup en tres niveles **ordenados de más barato a más caro**. Se corta en el primer match.
 
-**Nivel 1 — Exact match (hash).** Se normaliza la observación (lowercase, sin tildes, sin espacios duplicados, sin puntuación redundante) y se calcula un hash SHA-1. Lookup contra índice B-tree sobre `normalized_trigger_hash`. **O(log n), <1ms, costo USD 0.**
+**Nivel 1 — Coincidencia exacta (hash).** Se normaliza la observación (lowercase, sin tildes, sin espacios duplicados, sin puntuación redundante) y se calcula un hash SHA-1. Lookup contra índice B-tree sobre `normalized_trigger_hash`. **O(log n), <1ms, costo USD 0.**
 
 > Cubre el caso "el cliente escribe exactamente lo mismo que ya vimos antes" — el más común a régimen.
 
-**Nivel 2 — Fuzzy match (trigramas).** Si no hay exact match, se usa `pg_trgm` de Postgres para buscar por similitud de trigramas con umbral 0.3. Captura variaciones tipográficas: `fact. A y B`, `factura tipo A + B`, `factura A & B` todas matchean contra `armar factura a y b`. Índice GIN. **<5ms, costo USD 0.**
+**Nivel 2 — Coincidencia aproximada (trigramas).** Si no hay coincidencia exacta, se usa `pg_trgm` de Postgres para buscar por similitud de trigramas con umbral 0.3. Captura variaciones tipográficas: `fact. A y B`, `factura tipo A + B`, `factura A & B` todas matchean contra `armar factura a y b`. Índice GIN. **<5ms, costo USD 0.**
 
 > Cubre el caso "lo escribió distinto pero quiso decir lo mismo".
 
-**Nivel 3 — Semantic match (embeddings).** Si los dos anteriores fallan, se genera embedding de la observación con `text-embedding-3-small` (USD 0.00002/1K tokens) y se busca con similitud coseno >= 0.82 contra embeddings almacenados usando pgvector + IVFFlat. **~100ms, ~USD 0.0001.**
+**Nivel 3 — Coincidencia semántica (embeddings).** Si los dos anteriores fallan, se genera embedding de la observación con `text-embedding-3-small` (USD 0.00002/1K tokens) y se busca con similitud coseno >= 0.82 contra embeddings almacenados usando pgvector + IVFFlat. **~100ms, ~USD 0.0001.**
 
 > Cubre el caso "dijo algo completamente distinto pero semánticamente equivalente": "dividir en dos partes iguales" → matchea "50/50".
 
@@ -259,7 +259,7 @@ sequenceDiagram
     W->>R: resolve(cuit, observación)
     R->>DB: SELECT client_dna WHERE cuit=$1
     DB-->>R: ClientDNA
-    R->>DB: cascada match_exact → fuzzy → semantic
+    R->>DB: cascada match_exacta → aproximada → semántica
     alt Hit en algún nivel
         DB-->>R: Rule
         R-->>W: Action
@@ -293,9 +293,9 @@ Ver también [`flow.mmd`](./flow.mmd) para un diagrama de flujo alternativo. Res
 **Momento 3.** Si la observación está vacía o es texto plano sin instrucciones (heurística: solo números, referencias a facturas), se procesa normal sin tocar el sistema de memoria. Si requiere interpretación (verbos imperativos, sustantivos de dominio, patrones numéricos ambiguos), entra al Rules Engine.
 
 **Momento 4 — Rules Engine.** Cascada:
-- Exact match (hash) filtrando por `client_cuit` → si hay, ejecutar.
-- Fuzzy (pg_trgm) → si hay, ejecutar.
-- Semantic (pgvector) → si hay, ejecutar.
+- Coincidencia exacta (hash) filtrando por `client_cuit` → si hay, ejecutar.
+- Coincidencia aproximada (pg_trgm) → si hay, ejecutar.
+- Coincidencia semántica (pgvector) → si hay, ejecutar.
 
 Las tres queries priorizan `client_cuit` específico sobre `NULL` (global) con `ORDER BY client_cuit NULLS LAST`.
 
@@ -346,9 +346,9 @@ Por eso usamos un **estado intermedio**: `candidate_global`.
 ### 6.1 Cliente escribe distinto pero quiere lo mismo
 
 Captura natural de la cascada:
-- Misma frase con typo → exact (después de normalizar).
-- Misma frase con variación tipográfica grande → fuzzy.
-- Misma intención con palabras distintas → semantic.
+- Misma frase con typo → exacta (después de normalizar).
+- Misma frase con variación tipográfica grande → aproximada.
+- Misma intención con palabras distintas → semántica.
 
 Es exactamente el caso de uso para el que se diseñó la cascada.
 
@@ -418,9 +418,9 @@ xychart-beta
 
 | Escenario | % a día 90 | Costo | Latencia |
 |-----------|-----------|-------|----------|
-| Exact match | ~70-80% | USD 0 | <1ms |
-| Fuzzy match | ~10-15% | USD 0 | <5ms |
-| Semantic match | ~5-8% | USD 0.0001 | ~100ms |
+| Coincidencia exacta | ~70-80% | USD 0 | <1ms |
+| Coincidencia aproximada | ~10-15% | USD 0 | <5ms |
+| Coincidencia semántica | ~5-8% | USD 0.0001 | ~100ms |
 | LLM con DNA | ~3-5% | USD 0.003 | ~1-2s |
 | Escalación humana | ~1-2% | USD 0.002 (pipeline) | Humano |
 
@@ -448,19 +448,19 @@ Las cifras de arriba son **proyecciones ilustrativas, no medidas**. Asumen que e
 
 | Escenario | Supuesto que falla | Impacto a día 90 |
 |-----------|--------------------|-------------------|
-| **Base (asumido)** | Repetición alta, ~70-80% exact match | ~95% sin LLM · ~USD 0.20/día |
-| **Pesimista (-50% repetición)** | Mucha variación tipográfica y semántica | ~75% sin LLM · ~USD 0.80/día · el costo sigue bajo porque fuzzy y semantic son baratos |
+| **Base (asumido)** | Repetición alta, ~70-80% coincidencia exacta | ~95% sin LLM · ~USD 0.20/día |
+| **Pesimista (-50% repetición)** | Mucha variación tipográfica y semántica | ~75% sin LLM · ~USD 0.80/día · el costo sigue bajo porque la aproximada y la semántica son baratas |
 | **Catastrófico (-80% repetición)** | Cada cliente escribe distinto cada vez | ~50% sin LLM · ~USD 2-3/día · el sistema converge a un RAG con cascada, todavía mejor que RAG puro |
 
 **Bordes del modelo:**
 
-- El costo de este sistema **nunca crece más rápido** que un RAG equivalente. En el peor caso (catastrófico), el sistema se comporta como un RAG con cascada — todavía con la ventaja de que exact y fuzzy son gratis, aunque la cobertura sea baja.
+- El costo de este sistema **nunca crece más rápido** que un RAG equivalente. En el peor caso (catastrófico), el sistema se comporta como un RAG con cascada — todavía con la ventaja de que exacta y aproximada son gratis, aunque la cobertura sea baja.
 - La diferencia con un RAG puro **se sostiene incluso en el catastrófico**: ~50% sin LLM > ~0% sin LLM.
 - Las propiedades estructurales (auditabilidad, determinismo, tolerancia a fallos del LLM, promoción gradual con cuarentena) **se mantienen en todos los escenarios**, no dependen del porcentaje de repetición.
 
 **Cómo se reduce la incertidumbre:**
 
-Estas proyecciones se derivan del modelo + benchmarks públicos de pg_trgm y pgvector + asunciones razonables sobre clientes B2B recurrentes. Sin acceso a data de producción de Galo, no se pueden afirmar como medidas. Una vez en producción, las primeras 2-4 semanas de operación recalibran todos estos números con valores empíricos. El sistema es robusto a esa recalibración: las cifras absolutas pueden cambiar, pero la **ordenación de los niveles** (exact más barato que fuzzy más barato que semantic) y la curva descendente con el tiempo son propiedades de la arquitectura, no del data.
+Estas proyecciones se derivan del modelo + benchmarks públicos de pg_trgm y pgvector + asunciones razonables sobre clientes B2B recurrentes. Sin acceso a data de producción de Galo, no se pueden afirmar como medidas. Una vez en producción, las primeras 2-4 semanas de operación recalibran todos estos números con valores empíricos. El sistema es robusto a esa recalibración: las cifras absolutas pueden cambiar, pero la **ordenación de los niveles** (exacta más barata que aproximada más barata que semántica) y la curva descendente con el tiempo son propiedades de la arquitectura, no del data.
 
 ### Escalabilidad sublineal
 
@@ -482,9 +482,9 @@ Estas proyecciones se derivan del modelo + benchmarks públicos de pg_trgm y pgv
 
 Con 1M de clientes y ~5 reglas promedio, `rules` tiene ~5M filas. Postgres maneja esto sin problemas con los índices apropiados:
 
-- **B-tree sobre `(normalized_trigger_hash, client_cuit)`** → exact match en O(log n). Microsegundos.
-- **GIN sobre trigramas** → fuzzy en <5ms para queries puntuales.
-- **IVFFlat sobre embeddings** → semantic en <100ms con `lists` tuneado a ~sqrt(5M) ≈ 2200.
+- **B-tree sobre `(normalized_trigger_hash, client_cuit)`** → coincidencia exacta en O(log n). Microsegundos.
+- **GIN sobre trigramas** → aproximada en <5ms para queries puntuales.
+- **IVFFlat sobre embeddings** → semántica en <100ms con `lists` tuneado a ~sqrt(5M) ≈ 2200.
 
 Si la tabla crece más allá de 10M filas, particionar por `client_cuit` (partitioning declarativo nativo). Cada partición indexa solo un subconjunto.
 
@@ -520,11 +520,11 @@ flowchart LR
 
     subgraph CI["Compiled Intelligence"]
         direction TB
-        C1[Observación llega] --> C2{Exact match?}
+        C1[Observación llega] --> C2{Coincidencia exacta?}
         C2 -->|95% casos a día 90| C3[Acción]
-        C2 -->|miss| C4{Fuzzy match?}
+        C2 -->|miss| C4{Coincidencia aproximada?}
         C4 -->|hit| C3
-        C4 -->|miss| C5{Semantic match?}
+        C4 -->|miss| C5{Coincidencia semántica?}
         C5 -->|hit| C3
         C5 -->|miss · 1-2% casos| C6[LLM o operador]
         C6 -.async.-> C7[Compilar regla]
@@ -616,7 +616,7 @@ flowchart TB
     M --> R1[Reglas inferidas<br/>confidence=0.50<br/>source=inferred_from_pedidos]
     R1 --> DB[(rules table)]
 
-    C[Primer comprobante del cliente<br/>con observación ambigua] --> CC[Cascada normal<br/>exact → fuzzy → semantic]
+    C[Primer comprobante del cliente<br/>con observación ambigua] --> CC[Cascada normal<br/>exacta → aproximada → semántica]
     CC --> H{¿Match con regla inferida?}
     H -->|no| K[Sigue flujo normal:<br/>LLM con DNA o escalación]
     H -->|sí| Prop[NO ejecutar autónomamente.<br/>Mostrar al operador como<br/>match propuesto en 1 click]
@@ -658,7 +658,7 @@ Cada vez que una regla matchea pero el operador corrige el resultado, **no solo 
 
 ### El problema que resuelve
 
-La cascada de matching (especialmente los niveles fuzzy y semantic) es **lossy by design**. Un regla con trigger `"armar factura A y B"` puede over-matchear observaciones que comparten trigrams o concept tags pero significan algo distinto. Ejemplo:
+La cascada de matching (especialmente los niveles de coincidencia aproximada y semántica) es **lossy by design**. Un regla con trigger `"armar factura A y B"` puede over-matchear observaciones que comparten trigrams o concept tags pero significan algo distinto. Ejemplo:
 
 - Trigger de la regla: `armar factura A y B` → acción: `split_invoice(50/50)`
 - Observación entrante: `armar pedido tipo A` ← NO es lo mismo (pedido, no factura), pero comparte varios trigrams (`"arm"`, `"rma"`, `"mar"`, `"ar "`, `"r "`, `" a"`)
@@ -721,7 +721,7 @@ CREATE INDEX rule_negatives_rule_idx ON rule_negatives(rule_id);
 
 ### Trade-offs
 
-- **Storage extra.** Si cada regla acumula ~2 negative examples en promedio, son ~10M filas extra para 5M reglas. Postgres lo maneja sin problema con el índice por `rule_id`. Embeddings opcionales (solo se computan si el negative example se va a usar para matching semantic).
+- **Storage extra.** Si cada regla acumula ~2 negative examples en promedio, son ~10M filas extra para 5M reglas. Postgres lo maneja sin problema con el índice por `rule_id`. Embeddings opcionales (solo se computan si el negative example se va a usar para matching semántico).
 - **Compute extra durante matching.** Para cada candidato positivo, una query adicional contra los negatives de esa regla. Worst case ~5-10ms extra; en la práctica casi nada porque la mayoría de reglas tienen 0 negatives.
 - **Riesgo de "envenenamiento".** Si el operador agrega un negative example incorrecto, la regla se vuelve menos útil. Mitigación: los negatives son auditables (`created_at`, source de la corrección). Un proceso periódico puede revisar reglas que perdieron mucho hit rate después de adquirir negatives — ahí puede haber un negative envenenado.
 

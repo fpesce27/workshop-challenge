@@ -63,9 +63,9 @@ Cada comprobante con observación ambigua pasa por una cascada de 3 niveles. Est
 
 | Nivel | % a día 90 | Latencia | Costo | Qué captura |
 |------|------------|----------|-------|-------------|
-| **1. Exact** (hash) | ~75% | <1ms | USD 0 | misma frase exacta |
-| **2. Fuzzy** (trigramas) | ~13% | <5ms | USD 0 | typos, variaciones tipográficas |
-| **3. Semantic** (embeddings) | ~7% | ~100ms | USD 0.0001 | sinónimos, otras palabras misma intención |
+| **1. Exacta** (hash) | ~75% | <1ms | USD 0 | misma frase exacta |
+| **2. Aproximada** (trigramas) | ~13% | <5ms | USD 0 | typos, variaciones tipográficas |
+| **3. Semántica** (embeddings) | ~7% | ~100ms | USD 0.0001 | sinónimos, otras palabras misma intención |
 | **Escalación** (humano) | ~1-2% | tiempo humano | USD 0.003 + tiempo | observación genuinamente nueva |
 
 ```mermaid
@@ -84,12 +84,12 @@ flowchart TD
     class E red
 ```
 
-- **Nivel 1 (Exact):** *¿esta frase la vi exactamente igual antes?* Es un lookup en una tabla. Sub-milisegundo.
-- **Nivel 2 (Fuzzy):** *¿se parece a algo que vi, aunque tenga typos o variaciones?* Captura *«fact. A & B»* contra *«factura A y B»*.
-- **Nivel 3 (Semantic):** *¿significa lo mismo que algo que vi, aunque use otras palabras?* Captura *«dividir en dos partes iguales»* contra *«50/50»*.
+- **Nivel 1 (Coincidencia exacta):** *¿esta frase la vi exactamente igual antes?* Es un lookup en una tabla. Sub-milisegundo.
+- **Nivel 2 (Coincidencia aproximada):** *¿se parece a algo que vi, aunque tenga typos o variaciones?* Captura *«fact. A & B»* contra *«factura A y B»*.
+- **Nivel 3 (Coincidencia semántica):** *¿significa lo mismo que algo que vi, aunque use otras palabras?* Captura *«dividir en dos partes iguales»* contra *«50/50»*.
 - **Escalación:** si nada matcheó, el bot le pregunta al **operador interno** (NUNCA al cliente final). El operador responde una vez y el Learning Pipeline compila la respuesta en regla — nunca más hace falta preguntar.
 
-> **Por qué decidimos esto:** cada nivel cubre un tipo distinto de variación lingüística. Cortar en el primer match minimiza el costo. Si exact resuelve, no pagamos fuzzy ni semantic.
+> **Por qué decidimos esto:** cada nivel cubre un tipo distinto de variación lingüística. Cortar en el primer match minimiza el costo. Si la coincidencia exacta resuelve, no pagamos la aproximada ni la semántica.
 
 ### 4. Cómo aprende sin molestar al cliente
 
@@ -130,7 +130,7 @@ Si 3+ clientes diferentes tienen reglas per-client con el mismo trigger y la mis
 | ¿Postgres o vector DB dedicada (Pinecone, Weaviate)? | **Postgres + pg_trgm + pgvector** | Cubre relacional + texto + vectores en un solo sistema. USD 25/mes (Supabase Pro) alcanza para 10K clientes. Sin red extra ni dos sistemas que sincronizar. |
 | ¿Qué LLM usamos? | **Haiku** | Las tareas que la IA hace son simples (clasificar binario, extraer JSON, resumir reglas). Haiku es 20-60x más barato que Sonnet/Opus y la latencia es menor. |
 | ¿Le preguntamos al cliente final? | **Nunca** | El cliente es recurrente; la repregunta lo ofende. Toda escalación se resuelve internamente con el operador, una sola vez. |
-| ¿Un solo nivel (todo semantic) o tres? | **Tres** | El 75%+ son repeticiones exactas a día 90. Pagar embedding cada vez es desperdicio sistemático cuando un B-tree lookup resuelve en <1ms gratis. |
+| ¿Un solo nivel (todo semántica) o tres? | **Tres** | El 75%+ son repeticiones exactas a día 90. Pagar embedding cada vez es desperdicio sistemático cuando un B-tree lookup resuelve en <1ms gratis. |
 | ¿Qué pasa si la API de IA cae? | **El 95% sigue funcionando** | Los 3 niveles son Postgres puro. Solo se degrada el aprendizaje y los casos nuevos. RAG, en cambio, detiene todo. |
 | ¿Galo factura o hace logística? | **No** | Galo orquesta. La acción final es una **instrucción estructurada** transmitida al ERP de cada empresa contratante. Eso simplifica el alcance del sistema. |
 
@@ -148,7 +148,7 @@ Si 3+ clientes diferentes tienen reglas per-client con el mismo trigger y la mis
 - **No es RAG.** No guardamos texto para reinterpretar — compilamos texto en código ejecutable.
 - **Curva de costo invertida**: a más uso, más barato por unidad. El LLM se usa para enseñar al sistema, no para operarlo.
 - **Doble dimensión client/global resuelta con un `ORDER BY` simple**: per-client wins, global como fallback. Promoción automática de per-client a global cuando 3+ clientes coinciden.
-- **Cascada de 3 niveles ordenada por costo creciente**: exact (hash) → fuzzy (trigramas pg_trgm) → semantic (embeddings pgvector). Cada nivel cubre un tipo distinto de variación (tipográfica, semántica) sin pagar el costo del siguiente.
+- **Cascada de 3 niveles ordenada por costo creciente**: exacta (hash) → aproximada (trigramas pg_trgm) → semántica (embeddings pgvector). Cada nivel cubre un tipo distinto de variación (tipográfica, semántica) sin pagar el costo del siguiente.
 
 ### Escalabilidad
 - **Postgres maneja millones de reglas** con índices apropiados: B-tree para hash, GIN para trigramas, IVFFlat para vectores. Particionable por CUIT si crece más de 10M de filas.
@@ -186,7 +186,7 @@ A 100 clientes ~USD 35/mes. A 1K clientes ~USD 55/mes. A 100K clientes ~USD 250/
 
 **¿Qué pasa si la API de IA (Anthropic/OpenAI) se cae?**
 
-El **95% del sistema sigue funcionando**. Los 3 niveles de la cascada (exact, fuzzy, semantic con embeddings precomputados) son Postgres puro, sin dependencia online del LLM. Solo se degradan dos cosas: (a) la inferencia con DNA para casos nuevos, y (b) la compilación de respuestas nuevas. La queue del Learning Pipeline acumula tareas pendientes y se procesan cuando vuelve la API. **En un RAG, en cambio, un outage del LLM detiene 100% del tráfico.**
+El **95% del sistema sigue funcionando**. Los 3 niveles de la cascada (exacta, aproximada, semántica con embeddings precomputados) son Postgres puro, sin dependencia online del LLM. Solo se degradan dos cosas: (a) la inferencia con DNA para casos nuevos, y (b) la compilación de respuestas nuevas. La queue del Learning Pipeline acumula tareas pendientes y se procesan cuando vuelve la API. **En un RAG, en cambio, un outage del LLM detiene 100% del tráfico.**
 
 ---
 
@@ -198,13 +198,13 @@ Asumiendo que es una observación de facturación (no la descripción del produc
 
 1. Llega el comprobante → Lookup de Client DNA por CUIT → el `quirks_digest` dice algo como *"siempre 50/50 entre dos razones sociales"*.
 2. La cascada corre contra las reglas per-client + globales:
-   - **Exact match** del hash de "sillas con patas" → no hay regla con ese trigger. ❌
-   - **Fuzzy match** (trigramas) → no se parece a "sillas negras" lo suficiente. ❌
-   - **Semantic match** (concept tags) → "patas" no mapea a concepts conocidos del cliente. ❌
+   - **Coincidencia exacta** del hash de "sillas con patas" → no hay regla con ese trigger. ❌
+   - **Coincidencia aproximada** (trigramas) → no se parece a "sillas negras" lo suficiente. ❌
+   - **Coincidencia semántica** (concept tags) → "patas" no mapea a concepts conocidos del cliente. ❌
 3. **Inferencia con DNA**: el sistema le pasa a Haiku la observación + el digest del cliente y le pregunta *"¿qué acción inferís?"*. Si Haiku puede con confianza, ejecuta. Si no, pasa al paso 4.
 4. **Escalación al operador interno** (NUNCA al cliente). El operador ve un panel con contexto del cliente y responde: *"misma división de siempre"* o lo que corresponda.
 5. El **Learning Pipeline compila** esa respuesta como regla nueva (per-client para ese CUIT, trigger = "sillas con patas").
-6. **Próxima vez** que aparezca esa observación o variación: exact / fuzzy / semantic la captura, sin operador, sin LLM, en <5ms. 
+6. **Próxima vez** que aparezca esa observación o variación: exacta / aproximada / semántica la captura, sin operador, sin LLM, en <5ms. 
 
 **El cliente envió un comprobante normal y recibió su confirmación. Nunca fue molestado**. El dialogue de aclaración fue 100% interno entre el bot y el operador.
 
@@ -229,7 +229,7 @@ Cuando el operador corrige el match: la regla vieja se **desactiva** (soft delet
 La similitud existe — un rules engine también matchea reglas y ejecuta acciones. Tres diferencias clave:
 
 1. **Las reglas se compilan automáticamente desde lenguaje natural**, no las escribe un developer.
-2. **La cascada de 3 niveles ordenada por costo** (exact → fuzzy → semantic) es atípica en rules engines clásicos; típicamente solo hacen exact match. Captura variaciones lingüísticas sin pagar el costo del LLM.
+2. **La cascada de 3 niveles ordenada por costo** (exacta → aproximada → semántica) es atípica en rules engines clásicos; típicamente solo hacen coincidencia exacta. Captura variaciones lingüísticas sin pagar el costo del LLM.
 3. **Los dos diferenciales (§11 pre-compilación predictiva, §12 aprendizaje negativo)** son orthogonales al patrón de rules engines y son lo que un prompt genérico no propondría.
 
 Honestamente: el corazón es un rules engine + memory system. La novedad está en las extensiones específicas al dominio de Galo y en la cascada de costo creciente. La [nota honesta arriba](#sobre-la-solución-genérica-vs-esta-submission) lo reconoce abiertamente.
