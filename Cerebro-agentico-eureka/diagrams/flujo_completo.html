@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f8f8f8;
+    color: #1a1a2e;
+    font-family: 'Segoe UI', sans-serif;
+    padding: 32px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.1rem;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .tagline {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #6d5bd0;
+    margin-bottom: 4px;
+    font-style: italic;
+    font-weight: 700;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 0.68rem;
+    color: #888;
+    margin-bottom: 32px;
+    letter-spacing: 1px;
+  }
+  .diagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 740px;
+    margin: 0 auto;
+  }
+  .layer {
+    width: 100%;
+    border-radius: 14px;
+    padding: 16px 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    margin-bottom: 4px;
+  }
+  .layer-label {
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    opacity: 0.5;
+  }
+  .layer-title { font-size: 0.88rem; font-weight: 800; margin-bottom: 10px; }
+  .section-note {
+    font-size: 0.6rem;
+    color: #94a3b8;
+    margin-top: 8px;
+    font-style: italic;
+    line-height: 1.5;
+  }
+
+  .layer-entrada { background: #fff; border: 2px solid #e2e8f0; }
+  .layer-entrada .layer-title { color: #1a1a2e; }
+
+  .layer-indice { background: #fefce8; border: 2px solid #eab308; }
+  .layer-indice .layer-title { color: #854d0e; }
+
+  .layer-cerebro { background: #f5f3ff; border: 2px solid #6d5bd0; }
+  .layer-cerebro .layer-title { color: #6d5bd0; }
+
+  .layer-obsidian { background: #eef2ff; border: 2px dashed #818cf8; }
+  .layer-obsidian .layer-title { color: #4338ca; }
+
+  .layer-sueno { background: #fffbeb; border: 2px dashed #d97706; }
+  .layer-sueno .layer-title { color: #d97706; }
+
+  .layer-agente { background: #f0fdf4; border: 2px solid #16a34a; }
+  .layer-agente .layer-title { color: #16a34a; }
+
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .tool {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 0.67rem;
+    font-weight: 600;
+    color: #1a1a2e;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-wa { background: #25d366; }
+  .dot-purple { background: #6d5bd0; }
+  .dot-yellow { background: #eab308; }
+  .dot-blue { background: #4338ca; }
+  .dot-orange { background: #d97706; }
+  .dot-green { background: #16a34a; }
+  .dot-gray { background: #94a3b8; }
+
+  .sub-blocks { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .sub-block {
+    flex: 1;
+    min-width: 150px;
+    background: white;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border-left: 3px solid #6d5bd0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .sub-block-title { font-size: 0.7rem; font-weight: 700; color: #6d5bd0; margin-bottom: 3px; }
+  .sub-block-desc { font-size: 0.62rem; color: #64748b; line-height: 1.5; }
+
+  /* Obsidian carpetas */
+  .obs-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .obs-folder {
+    flex: 1;
+    min-width: 140px;
+    background: white;
+    border: 1px solid #c7d2fe;
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .obs-folder-title { font-size: 0.68rem; font-weight: 800; color: #4338ca; margin-bottom: 5px; }
+  .obs-folder-items { font-size: 0.6rem; color: #64748b; line-height: 1.7; font-family: monospace; }
+
+  /* Sueño tareas */
+  .sueno-tasks { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sueno-task {
+    flex: 1;
+    min-width: 140px;
+    background: white;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border-left: 3px solid #d97706;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .sueno-task-title { font-size: 0.68rem; font-weight: 700; color: #d97706; margin-bottom: 3px; }
+  .sueno-task-desc { font-size: 0.6rem; color: #64748b; line-height: 1.5; }
+
+  /* Global vs Cliente badge */
+  .decision-box {
+    width: 100%;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .decision-title { font-size: 0.65rem; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+  .decision-row { display: flex; gap: 10px; }
+  .decision-item {
+    flex: 1;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.6rem;
+    line-height: 1.5;
+  }
+  .decision-global { background: #f0fdf4; border: 1px solid #86efac; }
+  .decision-global strong { color: #16a34a; display: block; margin-bottom: 2px; font-size: 0.65rem; }
+  .decision-cliente { background: #f5f3ff; border: 1px solid #c4b5fd; }
+  .decision-cliente strong { color: #6d5bd0; display: block; margin-bottom: 2px; font-size: 0.65rem; }
+
+  /* Escala */
+  .escala-bar {
+    width: 100%;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 10px;
+  }
+  .escala-title { font-size: 0.62rem; font-weight: 700; color: #1a1a2e; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .escala-items { display: flex; gap: 8px; flex-wrap: wrap; }
+  .escala-item { flex: 1; min-width: 120px; text-align: center; }
+  .escala-vol { font-size: 0.72rem; font-weight: 800; color: #6d5bd0; }
+  .escala-lbl { font-size: 0.58rem; color: #94a3b8; line-height: 1.4; margin-top: 2px; }
+
+  /* Arrow */
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 5px 0;
+    gap: 2px;
+  }
+  .arrow-label { font-size: 0.57rem; color: #94a3b8; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
+
+  .two-arrows {
+    display: flex;
+    justify-content: center;
+    gap: 60px;
+    margin: 5px 0;
+    width: 100%;
+    max-width: 740px;
+  }
+</style>
+</head>
+<body>
+
+<h1>🧠 Cerebro Agéntico — Sistema de Memoria</h1>
+<div class="tagline">"La primera vez pregunta. La segunda vez duda. La tercera vez anticipa."</div>
+<div class="subtitle">Second Brain Workshop Challenge · Auspiciado por Galo + Obsidian</div>
+
+<div class="diagram">
+
+  <!-- ENTRADA -->
+  <div class="layer layer-entrada">
+    <div class="layer-label">Canal de entrada</div>
+    <div class="layer-title">Comprobante por WhatsApp</div>
+    <div class="tools">
+      <div class="tool"><span class="dot dot-wa"></span>WhatsApp Business API</div>
+      <div class="tool"><span class="dot dot-gray"></span>Imagen · Texto · Observaciones ambiguas</div>
+      <div class="tool"><span class="dot dot-gray"></span>1 comprobante / minuto · alta concurrencia</div>
+    </div>
+  </div>
+
+  <div class="arrow">
+    <svg width="20" height="22" viewBox="0 0 20 22"><line x1="10" y1="0" x2="10" y2="16" stroke="#cbd5e1" stroke-width="2"/><polygon points="4,12 10,22 16,12" fill="#cbd5e1"/></svg>
+    <div class="arrow-label">mensaje entrante</div>
+  </div>
+
+  <!-- ÍNDICE RÁPIDO -->
+  <div class="layer layer-indice">
+    <div class="layer-label">Capa 1 · Acceso en microsegundos</div>
+    <div class="layer-title">⚡ Índice Rápido</div>
+    <div class="tools">
+      <div class="tool"><span class="dot dot-yellow"></span>SQLite en RAM</div>
+      <div class="tool"><span class="dot dot-yellow"></span>JSON estructurado en memoria</div>
+      <div class="tool"><span class="dot dot-gray"></span>Se reconstruye desde Obsidian al iniciar</div>
+    </div>
+    <div class="section-note">Resuelve la concurrencia. Por cada mensaje consulta primero el índice — no Obsidian directamente. Si hay hit, inyecta y listo. Si no hay hit, busca en capas más profundas. El costo de consulta no crece con el volumen de memorias.</div>
+  </div>
+
+  <div class="arrow">
+    <svg width="20" height="22" viewBox="0 0 20 22"><line x1="10" y1="0" x2="10" y2="16" stroke="#cbd5e1" stroke-width="2"/><polygon points="4,12 10,22 16,12" fill="#cbd5e1"/></svg>
+    <div class="arrow-label">hit → inyecta contexto · miss → busca en Obsidian</div>
+  </div>
+
+  <!-- CEREBRO -->
+  <div class="layer layer-cerebro">
+    <div class="layer-label">Cerebro Agéntico · Capa de orquestación</div>
+    <div class="layer-title">Pre-inyector + Consolidador</div>
+
+    <div class="decision-box">
+      <div class="decision-title">🔀 Decisión central: ¿memoria global o por cliente?</div>
+      <div class="decision-row">
+        <div class="decision-item decision-global">
+          <strong>📦 Memoria Global</strong>
+          Aplica a cualquier cliente.<br>
+          <em>"Factura A y B = 50% cada tipo"</em><br>
+          → Guardada en /global/conceptos/
+        </div>
+        <div class="decision-item decision-cliente">
+          <strong>👤 Memoria por Cliente</strong>
+          Quirk específico de uno.<br>
+          <em>"López siempre factura mitad A"</em><br>
+          → Guardada en /clientes/lopez/
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-blocks">
+      <div class="sub-block">
+        <div class="sub-block-title">Pre-inyector</div>
+        <div class="sub-block-desc">Consulta índice → trae memoria relevante → inyecta al agente solo lo que aplica a este comprobante. ~80 tokens vs ~300 de una repregunta.</div>
+      </div>
+      <div class="sub-block">
+        <div class="sub-block-title">Consolidador</div>
+        <div class="sub-block-desc">Cuando el agente pregunta y el usuario responde → evalúa si es global o por cliente → escribe en Obsidian → actualiza índice RAM.</div>
+      </div>
+    </div>
+
+    <div class="tools">
+      <div class="tool"><span class="dot dot-purple"></span>Python · Orquestación</div>
+      <div class="tool"><span class="dot dot-purple"></span>LLM genérico (Claude / GPT-4o / Gemini)</div>
+      <div class="tool"><span class="dot dot-gray"></span>REST API · Webhooks</div>
+    </div>
+  </div>
+
+  <!-- FLECHAS BIDIRECCIONALES -->
+  <div class="two-arrows">
+    <div class="arrow">
+      <svg width="20" height="22" viewBox="0 0 20 22"><line x1="10" y1="22" x2="10" y2="6" stroke="#818cf8" stroke-width="2"/><polygon points="4,10 10,0 16,10" fill="#818cf8"/></svg>
+      <div class="arrow-label">consulta contexto</div>
+    </div>
+    <div class="arrow">
+      <div class="arrow-label">consolida memoria</div>
+      <svg width="20" height="22" viewBox="0 0 20 22"><line x1="10" y1="0" x2="10" y2="16" stroke="#818cf8" stroke-width="2"/><polygon points="4,12 10,22 16,12" fill="#818cf8"/></svg>
+    </div>
+  </div>
+
+  <!-- OBSIDIAN -->
+  <div class="layer layer-obsidian">
+    <div class="layer-label">Capa 2 · Fuente de verdad · Auditable</div>
+    <div class="layer-title">🔮 Obsidian — Red Neuronal Externa</div>
+    <div class="obs-grid">
+      <div class="obs-folder">
+        <div class="obs-folder-title">/global/</div>
+        <div class="obs-folder-items">
+          conceptos/<br>
+          &nbsp;factura_a_y_b.md<br>
+          &nbsp;hacer_50_50.md<br>
+          patrones/<br>
+          &nbsp;ambiguedades_comunes.md
+        </div>
+      </div>
+      <div class="obs-folder">
+        <div class="obs-folder-title">/clientes/</div>
+        <div class="obs-folder-items">
+          lopez/<br>
+          &nbsp;quirks.md<br>
+          &nbsp;historial_comprimido.md<br>
+          garcia/<br>
+          &nbsp;quirks.md
+        </div>
+      </div>
+      <div class="obs-folder">
+        <div class="obs-folder-title">/insights/</div>
+        <div class="obs-folder-items">
+          eurekas/<br>
+          &nbsp;eureka_047.md<br>
+          &nbsp;[[links a clientes]]<br>
+          &nbsp;[[links a conceptos]]
+        </div>
+      </div>
+    </div>
+    <div class="tools">
+      <div class="tool"><span class="dot dot-blue"></span>Obsidian Local REST API</div>
+      <div class="tool"><span class="dot dot-blue"></span>Markdown + Frontmatter YAML</div>
+      <div class="tool"><span class="dot dot-blue"></span>FTS · Búsqueda semántica liviana</div>
+      <div class="tool"><span class="dot dot-blue"></span>Grafo de links entre nodos</div>
+    </div>
+    <div class="section-note">El grafo conecta conceptos globales con los clientes que los usan — como neuronas. Esto permite al Sueño detectar cuándo un quirk de un cliente es en realidad un patrón global que nadie había generalizado.</div>
+  </div>
+
+  <div class="arrow">
+    <div class="arrow-label">cron nocturno · 0 tokens en tiempo real</div>
+    <svg width="20" height="22" viewBox="0 0 20 22"><line x1="10" y1="0" x2="10" y2="16" stroke="#d97706" stroke-width="2" stroke-dasharray="4,2"/><polygon points="4,12 10,22 16,12" fill="#d97706"/></svg>
+  </div>
+
+  <!-- SUEÑO -->
+  <div class="layer layer-sueno">
+    <div class="layer-label">Capa 3 · Background · Sin costo en tiempo real</div>
+    <div class="layer-title">💤 Motor de Insights — El Sueño</div>
+    <div class="sueno-tasks">
+      <div class="sueno-task">
+        <div class="sueno-task-title">1. Comprimir</div>
+        <div class="sueno-task-desc">50 memorias de "factura A y B para López" → 1 memoria con confianza alta. El volumen no crece lineal.</div>
+      </div>
+      <div class="sueno-task">
+        <div class="sueno-task-title">2. Promover</div>
+        <div class="sueno-task-desc">Si 10 clientes distintos tienen el mismo quirk → es global. Se mueve de /clientes/ a /global/.</div>
+      </div>
+      <div class="sueno-task">
+        <div class="sueno-task-title">3. Descubrir</div>
+        <div class="sueno-task-desc">Cruza patrones entre clientes. Genera Eurekas. El sistema aprende lo que nadie le enseñó explícitamente.</div>
+      </div>
+    </div>
+    <div class="section-note">Inspirado en cómo el cerebro humano consolida memoria durante el descanso. Corre cuando el tráfico es bajo. El índice RAM se reconstruye después de cada ejecución.</div>
+  </div>
+
+  <div class="arrow">
+    <svg width="20" height="22" viewBox="0 0 20 22"><line x1="10" y1="0" x2="10" y2="16" stroke="#cbd5e1" stroke-width="2"/><polygon points="4,12 10,22 16,12" fill="#cbd5e1"/></svg>
+    <div class="arrow-label">contexto + instrucciones · solo lo relevante para este mensaje</div>
+  </div>
+
+  <!-- AGENTE -->
+  <div class="layer layer-agente">
+    <div class="layer-label">Bot existente · Sin modificar su core</div>
+    <div class="layer-title">✅ Agente GALO — Responde sin preguntar</div>
+    <div class="tools">
+      <div class="tool"><span class="dot dot-green"></span>Motor existente de GALO (intacto)</div>
+      <div class="tool"><span class="dot dot-wa"></span>WhatsApp Business API</div>
+      <div class="tool"><span class="dot dot-green"></span>Extracción · Validación · ERP</div>
+    </div>
+    <div class="section-note">El Cerebro le habla al agente como un usuario más. No requiere integración profunda ni modificar el agente existente.</div>
+  </div>
+
+  <!-- ESCALA -->
+  <div class="escala-bar">
+    <div class="escala-title">Comportamiento a escala</div>
+    <div class="escala-items">
+      <div class="escala-item">
+        <div class="escala-vol">0 – 1K</div>
+        <div class="escala-lbl">Índice RAM + Obsidian directo. Sin fricción.</div>
+      </div>
+      <div class="escala-item">
+        <div class="escala-vol">1K – 100K</div>
+        <div class="escala-lbl">Sueño comprime activamente. Índice liviano.</div>
+      </div>
+      <div class="escala-item">
+        <div class="escala-vol">100K – 1M</div>
+        <div class="escala-lbl">Memorias por cluster. Solo carga el cluster relevante.</div>
+      </div>
+      <div class="escala-item">
+        <div class="escala-vol">1M+</div>
+        <div class="escala-lbl">Mayoría resuelve con memoria global. Costo baja con el tiempo.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
