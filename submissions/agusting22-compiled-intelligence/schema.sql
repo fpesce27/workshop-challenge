@@ -79,9 +79,15 @@ CREATE TABLE rules (
   -- Una regla por (cuit, hash). NULL en cuit = global, una global por hash.
   -- Permite per-client + global del mismo trigger.
   -- Provenance del rule (diferencial §11): operator-given vs pre-compilada desde pedidos
-  source                 text          NOT NULL DEFAULT 'operator_compiled',  -- 'operator_compiled' | 'inferred_from_pedidos' | 'promoted_to_global'
-  requires_first_validation boolean    NOT NULL DEFAULT false,                -- las reglas inferidas no actúan autónomas hasta validación humana
-  CONSTRAINT rules_source_check CHECK (source IN ('operator_compiled', 'inferred_from_pedidos', 'promoted_to_global')),
+  source                 text          NOT NULL DEFAULT 'operator_compiled',
+    -- 'operator_compiled'      → respuesta directa del operador
+    -- 'inferred_from_pedidos'  → minada del historial de pedidos (§11)
+    -- 'candidate_global'       → promoción gradual desde per-client, todavía en cuarentena (§5)
+    -- 'promoted_to_global'     → confirmada como global tras validaciones
+  requires_first_validation boolean    NOT NULL DEFAULT false,                -- inferidas no actúan autónomas hasta validación humana
+  scope_confidence       numeric(4,3)  NOT NULL DEFAULT 1.0,                  -- (F-05 fix) qué tan seguro estaba el clasificador per_client/global: 1.0 = heurística clara, 0.5 = Haiku borderline
+  promotion_confirmations int          NOT NULL DEFAULT 0,                    -- contador de validaciones para sacar de candidate_global → promoted_to_global
+  CONSTRAINT rules_source_check CHECK (source IN ('operator_compiled', 'inferred_from_pedidos', 'candidate_global', 'promoted_to_global')),
   CONSTRAINT rules_unique_per_scope UNIQUE NULLS NOT DISTINCT (client_cuit, trigger_hash)
 );
 

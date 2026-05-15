@@ -5,6 +5,22 @@
 
 ---
 
+## Resumen ejecutivo
+
+Este documento describe el sistema completo en ~700 líneas. Si solo querés entender qué hace este sistema y qué lo diferencia, leé esto:
+
+**El núcleo (§1-§10):** un sistema de memoria que **compila** las aclaraciones del operador en reglas determinísticas, en vez de guardarlas como texto para que un LLM las relea cada vez. La cascada de 3 niveles (exact → fuzzy → semantic) resuelve el 95%+ de los casos sin LLM. *La parte de "compilar respuestas humanas en reglas reutilizables" es la respuesta razonable que cualquier IA propondría a este challenge.*
+
+**Los dos diferenciales (§11 y §12 — lo que un prompt genérico NO propone):**
+
+1. **§11. Pre-compilación predictiva desde el historial de pedidos.** Galo ya tiene el historial de pedidos de cada cliente. Lo minamos para pre-poblar reglas de baja confianza **antes** del primer comprobante. El sistema **no arranca vacío** — arranca con ~30-45% de cobertura el Día 1. Una IA genérica no razona sobre data lateral que la empresa ya tiene.
+
+2. **§12. Aprendizaje negativo / reglas de frontera.** Cada corrección del operador genera **tanto una regla nueva como un contra-ejemplo** de la regla que se equivocó. Las reglas aprenden explícitamente **sus límites**, no solo sus respuestas correctas. Una corrección humana entrega valor en dos dimensiones, no una.
+
+**Cómo verlo en acción sin leer el doc completo:** abrí [`demo.html`](./demo.html) con doble click en cualquier browser. Pickeá uno de los presets, ves la cascada animada. El propio demo tiene un botón **📖 ¿Cómo funciona?** que abre un panel con la explicación visual.
+
+---
+
 ## Tabla de contenidos
 
 1. [El problema real](#1-el-problema-real)
@@ -17,6 +33,8 @@
 8. [Escalabilidad técnica](#8-escalabilidad-t%C3%A9cnica)
 9. [Por qué no es RAG](#9-por-qu%C3%A9-no-es-rag)
 10. [Decisiones y trade-offs](#10-decisiones-y-trade-offs)
+11. [**Diferencial — Pre-compilación predictiva desde pedidos history**](#11-diferencial--pre-compilación-predictiva-desde-el-historial-de-pedidos)
+12. [**Diferencial — Aprendizaje negativo / reglas de frontera**](#12-diferencial--aprendizaje-negativo--reglas-de-frontera)
 
 ---
 
@@ -304,7 +322,18 @@ Cuando el operador explica qué significa "50/50", el sistema necesita decidir s
 
 **Clasificación inicial** (Learning Pipeline, paso 1). Heurísticas + Haiku. Si hay dudas, **default a per-client** — el peor caso es redundancia (compilás N veces lo mismo), no error (aplicás regla de A al cliente B).
 
-**Promoción automática a global.** Si 3+ clientes distintos tienen reglas per-client con el mismo trigger normalizado y la misma acción, se crea automáticamente una regla global. Las per-client siguen vivas como overrides; la global sirve de fallback para clientes nuevos.
+**Promoción gradual a global con cuarentena.** *(Mitigación de F-05: scope misclassification que se propaga)*
+
+La intuición es: si 3+ clientes distintos tienen reglas per-client con el mismo trigger y la misma acción, parece haber un patrón general. Pero auto-promover puede ser peligroso — esos 3 podrían haber sido clasificados mal por Haiku en el paso 1 del Learning Pipeline (ver §6.7), y un global incorrecto se aplica silenciosamente a todos los clientes que aún no tienen regla propia.
+
+Por eso usamos un **estado intermedio**: `candidate_global`.
+
+1. Cuando el sistema detecta 3+ coincidencias, **no crea una regla global activa**. Crea una regla en estado `candidate_global` con confianza inicial 0.50.
+2. Una regla `candidate_global` **no se aplica autónomamente** a clientes que no la tienen como per-client. Solo se le muestra al operador como sugerencia cuando aparece un comprobante que la matchearía.
+3. Cada confirmación del operador incrementa `promotion_confirmations`. Después de N confirmaciones (default: 5), pasa a `promoted_to_global` y empieza a actuar como fallback estándar.
+4. Si el operador rechaza la sugerencia, su confidence baja. Si cae bajo 0.30, se elimina como candidata.
+
+**Por qué importa:** este mecanismo es el *circuit breaker* contra el envenenamiento progresivo. Aún si Haiku misclasifica 3 reglas como per-client cuando son universales (o viceversa), la cuarentena evita que esa misclasificación se propague automáticamente al resto del sistema. La promoción a global siempre requiere validación humana o evidencia masiva acumulada. La columna `scope_confidence` registra qué tan seguro estaba el clasificador (heurística o Haiku) al definir el scope inicial — reglas con scope_confidence baja se priorizan para revisión.
 
 **Override de global.** Si un cliente tiene observación con regla global pero el operador dice "para este es diferente", se crea regla per-client. La prioridad del Rules Engine (per-client primero) resuelve el resto.
 
@@ -351,6 +380,23 @@ Comparado con RAG: ahí un outage del LLM detiene todo, porque cada query depend
 
 Update del Client DNA usa `UPDATE ... SET total_receipts = total_receipts + 1` (idempotente, sin locks). Si dos reglas se compilan en paralelo para el mismo trigger, el constraint de unicidad sobre `(client_cuit, trigger_hash)` resuelve la carrera: una gana, la otra hace merge.
 
+### 6.7 Scope misclassification — cuando Haiku se equivoca clasificando per-client vs global
+
+El paso 1 del Learning Pipeline le pregunta a Haiku si una regla aplica per-client o global cuando las heurísticas no son concluyentes. Haiku puede equivocarse — tiene contexto limitado y la pregunta a veces es genuinamente ambigua. Sin mitigación, un error de clasificación puede propagarse al resto del sistema vía la promoción automática.
+
+**El daño compuesto:**
+
+- Una regla per-client mal etiquetada como global se aplica silenciosamente a todos los clientes sin regla propia → facturación incorrecta para muchos clientes hasta que alguien lo detecta.
+- Tres reglas distintas mal etiquetadas como per-client del mismo concepto activan la promoción automática → ahora hay un global mal pegado a la nada.
+
+**Mitigaciones (en capas):**
+
+1. **Default conservador a per-client.** Si las heurísticas y Haiku están inciertas, default a per-client. El peor caso de equivocarse así es redundancia (compilar lo mismo varias veces), no error (aplicar regla de A al cliente B).
+2. **Cuarentena de promoción (ver §5).** Las promociones per-client → global no son inmediatas. Pasan por `candidate_global` y requieren N confirmaciones del operador antes de actuar autónomamente.
+3. **`scope_confidence` registrado por regla.** La confianza con la que se clasificó el scope queda en metadata. Reglas con `scope_confidence < 0.7` se listan en un dashboard de revisión periódica.
+4. **Override siempre disponible.** Si un operador detecta que una regla global se está aplicando mal a un cliente, agrega regla per-client → la prioridad de la cascada (per-client first) la deshabilita para ese CUIT inmediatamente.
+5. **Soft delete + audit.** Las reglas degradadas no se eliminan duro — quedan inactivas con timestamp. Si una regla global resulta envenenada, se desactiva sin perder la traza.
+
 ---
 
 ## 7. Costos a escala
@@ -395,6 +441,26 @@ xychart-beta
 | Anthropic (Haiku, ~95% lookups) | USD 5-10 |
 | OpenAI embeddings (~5% de comprobantes) | USD 1 |
 | **Total** | **~USD 31-36/mes** |
+
+### Sensibilidad a los supuestos
+
+Las cifras de arriba son **proyecciones ilustrativas, no medidas**. Asumen que el dominio se comporta como uno espera de una distribuidora B2B con clientes recurrentes: notas con instrucciones que se repiten semanalmente, ~100-2000 clientes con patrones estables. Vale exponer qué pasa si esos supuestos están equivocados:
+
+| Escenario | Supuesto que falla | Impacto a día 90 |
+|-----------|--------------------|-------------------|
+| **Base (asumido)** | Repetición alta, ~70-80% exact match | ~95% sin LLM · ~USD 0.20/día |
+| **Pesimista (-50% repetición)** | Mucha variación tipográfica y semántica | ~75% sin LLM · ~USD 0.80/día · el costo sigue bajo porque fuzzy y semantic son baratos |
+| **Catastrófico (-80% repetición)** | Cada cliente escribe distinto cada vez | ~50% sin LLM · ~USD 2-3/día · el sistema converge a un RAG con cascada, todavía mejor que RAG puro |
+
+**Bordes del modelo:**
+
+- El costo de este sistema **nunca crece más rápido** que un RAG equivalente. En el peor caso (catastrófico), el sistema se comporta como un RAG con cascada — todavía con la ventaja de que exact y fuzzy son gratis, aunque la cobertura sea baja.
+- La diferencia con un RAG puro **se sostiene incluso en el catastrófico**: ~50% sin LLM > ~0% sin LLM.
+- Las propiedades estructurales (auditabilidad, determinismo, tolerancia a fallos del LLM, promoción gradual con cuarentena) **se mantienen en todos los escenarios**, no dependen del porcentaje de repetición.
+
+**Cómo se reduce la incertidumbre:**
+
+Estas proyecciones se derivan del modelo + benchmarks públicos de pg_trgm y pgvector + asunciones razonables sobre clientes B2B recurrentes. Sin acceso a data de producción de Galo, no se pueden afirmar como medidas. Una vez en producción, las primeras 2-4 semanas de operación recalibran todos estos números con valores empíricos. El sistema es robusto a esa recalibración: las cifras absolutas pueden cambiar, pero la **ordenación de los niveles** (exact más barato que fuzzy más barato que semantic) y la curva descendente con el tiempo son propiedades de la arquitectura, no del data.
 
 ### Escalabilidad sublineal
 
