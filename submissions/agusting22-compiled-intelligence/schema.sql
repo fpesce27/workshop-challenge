@@ -78,6 +78,10 @@ CREATE TABLE rules (
 
   -- Una regla por (cuit, hash). NULL en cuit = global, una global por hash.
   -- Permite per-client + global del mismo trigger.
+  -- Provenance del rule (diferencial §11): operator-given vs pre-compilada desde pedidos
+  source                 text          NOT NULL DEFAULT 'operator_compiled',  -- 'operator_compiled' | 'inferred_from_pedidos' | 'promoted_to_global'
+  requires_first_validation boolean    NOT NULL DEFAULT false,                -- las reglas inferidas no actúan autónomas hasta validación humana
+  CONSTRAINT rules_source_check CHECK (source IN ('operator_compiled', 'inferred_from_pedidos', 'promoted_to_global')),
   CONSTRAINT rules_unique_per_scope UNIQUE NULLS NOT DISTINCT (client_cuit, trigger_hash)
 );
 
@@ -123,6 +127,46 @@ CREATE TABLE conflicts (
 CREATE INDEX conflicts_unresolved_idx ON conflicts(resolved) WHERE resolved = false;
 
 ------------------------------------------------------------
+-- Tabla: rule_negatives  (diferencial §12: aprendizaje negativo)
+-- Contra-ejemplos: observaciones que matchearon una regla en el pasado
+-- pero que el operador corrigió como falsos positivos. El matcher las usa
+-- para rechazar over-matches en niveles fuzzy/semantic.
+------------------------------------------------------------
+
+CREATE TABLE rule_negatives (
+  id                     uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
+  rule_id                uuid          NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
+  observation_text       text          NOT NULL,
+  observation_normalized text          NOT NULL,
+  observation_embedding  vector(1536),
+  source_interaction_id  uuid          REFERENCES interactions(id),    -- de qué corrección salió
+  created_at             timestamptz   DEFAULT now()
+);
+
+CREATE INDEX rule_negatives_rule_idx ON rule_negatives(rule_id);
+
+------------------------------------------------------------
+-- Tabla: inferred_patterns  (diferencial §11: pre-compilación predictiva)
+-- Resultado del job de mining sobre el historial de pedidos.
+-- Cada patrón detectado genera una rule con source='inferred_from_pedidos'.
+-- Esta tabla mantiene la trazabilidad de qué pattern generó qué rule.
+------------------------------------------------------------
+
+CREATE TABLE inferred_patterns (
+  id              uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_cuit     text          NOT NULL REFERENCES client_dna(cuit),
+  pattern_type    text          NOT NULL,    -- 'multi_category_orders' | 'bimodal_amount' | 'frequency' | 'industry_default'
+  pattern_data    jsonb         NOT NULL,    -- estadísticas que respaldan el pattern (ej: {n_orders, avg_amount, threshold, ...})
+  generated_rule_id uuid        REFERENCES rules(id) ON DELETE SET NULL,
+  detected_at     timestamptz   DEFAULT now(),
+  validated_at    timestamptz,                -- cuándo el operador confirmó (o rechazó) este pattern
+  validation      text          CHECK (validation IN ('confirmed', 'rejected', 'pending')) DEFAULT 'pending'
+);
+
+CREATE INDEX inferred_patterns_client_idx ON inferred_patterns(client_cuit);
+CREATE INDEX inferred_patterns_pending_idx ON inferred_patterns(validation) WHERE validation = 'pending';
+
+------------------------------------------------------------
 -- Funciones de matching
 -- Encapsulan la cascada. La app llama match_exact, match_fuzzy, match_semantic en orden.
 ------------------------------------------------------------
@@ -166,6 +210,33 @@ RETURNS SETOF rules AS $$
     client_cuit NULLS LAST,
     (trigger_embedding <=> p_embedding) ASC
   LIMIT 1;
+$$ LANGUAGE sql STABLE;
+
+------------------------------------------------------------
+-- Diferencial §12: chequeo de negative examples antes de aceptar un match.
+-- Devuelve TRUE si la observación es MÁS similar a algún negative example
+-- de la regla que al trigger positivo. En ese caso, el caller rechaza el match.
+------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION rejected_by_negatives(
+  p_rule_id uuid,
+  p_observation_normalized text,
+  p_observation_embedding vector(1536),
+  p_positive_similarity numeric
+) RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM rule_negatives
+    WHERE rule_id = p_rule_id
+      AND (
+        -- Para fuzzy/trigrama, comparamos similitud textual.
+        similarity(observation_normalized, p_observation_normalized) > p_positive_similarity
+        OR
+        -- Para semantic, comparamos distancia coseno (menor distancia = mayor similitud).
+        (observation_embedding IS NOT NULL AND p_observation_embedding IS NOT NULL
+         AND (1 - (observation_embedding <=> p_observation_embedding)) > p_positive_similarity)
+      )
+  );
 $$ LANGUAGE sql STABLE;
 
 ------------------------------------------------------------

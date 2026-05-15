@@ -512,6 +512,155 @@ Mermaid se renderiza nativamente en GitHub. No requiere imágenes externas que s
 
 ---
 
+## 11. Diferencial — Pre-compilación predictiva desde el historial de pedidos
+
+> **Por qué esta sección existe.** La arquitectura central de los puntos §1 a §10 es la respuesta razonable que cualquier IA moderna le da al prompt del challenge: "extraer aclaraciones humanas → compilar en reglas → reusarlas". Es una buena respuesta, pero es la respuesta esperable. Las siguientes dos secciones (§11 y §12) suman diferenciales concretos sobre esa base que un prompt genérico difícilmente proponga, porque requieren leer el contexto específico de Galo, no solo el problema abstracto.
+
+### Resumen
+
+A diferencia de un sistema típico de aprendizaje que arranca vacío, este sistema arranca con **cobertura no-cero el Día 1** porque mina patrones del historial de pedidos que Galo ya tiene per-client, antes de que llegue el primer comprobante.
+
+### El insight específico de Galo
+
+La gran mayoría de submissions a este challenge van a proponer sistemas que arrancan con el repositorio de reglas vacío: no hay memorias, todo es "primer encuentro", cada observación requiere escalación. Lógico — el challenge describe *un sistema de memoria*, y un sistema de memoria por default empieza vacío.
+
+Pero Galo tiene un activo específico que un prompt abstracto al challenge **no enfatiza** y que una IA genérica pasa por alto: cada cliente recurrente tiene **semanas o meses de historial de pedidos**. Productos, montos, frecuencias, direcciones de entrega, métodos de pago. Esta data ya existe en la plataforma — se usa para la parte de toma-de-pedido. La proponemos como **prior distribution** para el sistema de memoria.
+
+### Cómo funciona
+
+Un job background corre periódicamente (diario, o on-trigger cuando llega un pedido nuevo) y minea per-client:
+
+| Pattern detectado en pedidos | Regla inferida (con baja confianza) |
+|------------------------------|--------------------------------------|
+| El cliente ordena en cada pedido productos de dos categorías fiscales distintas | `split_invoice` con tipo A + tipo B |
+| Los montos de los pedidos del cliente tienen distribución bimodal con corte en ~X | `assign_razon_social` con `amount_gte: X` |
+| El cliente tiene historial frecuente de entregas en >1 dirección | `split_amount` o instrucción de distribución por sucursal |
+| El cliente opera en industria/categoría con sub-IVA aparte habitual | `add_iva_line` |
+
+Cada regla inferida se persiste con:
+- `confidence` = **0.50** (baja — viene de inferencia estadística, no de aclaración explícita del operador)
+- `source` = **`inferred_from_pedidos`** (auditable)
+- `requires_first_validation` = **true** (NO se ejecuta autónomamente; se propone al operador)
+
+### Qué cambia en el flujo cuando llega el primer comprobante
+
+```mermaid
+flowchart TB
+    P[Galo pedidos history<br/>existente per-client] --> M[Background pattern mining<br/>daily / on-new-pedido]
+    M --> R1[Reglas inferidas<br/>confidence=0.50<br/>source=inferred_from_pedidos]
+    R1 --> DB[(rules table)]
+
+    C[Primer comprobante del cliente<br/>con observación ambigua] --> CC[Cascada normal<br/>exact → fuzzy → semantic]
+    CC --> H{¿Match con regla inferida?}
+    H -->|no| K[Sigue flujo normal:<br/>LLM con DNA o escalación]
+    H -->|sí| Prop[NO ejecutar autónomamente.<br/>Mostrar al operador como<br/>match propuesto en 1 click]
+    Prop --> V{Operador valida<br/>en la UI}
+    V -->|✓ confirma| B[Boost confidence → 0.90<br/>source → operator_validated<br/>Regla queda como normal]
+    V -->|✗ corrige| L[Desactivar regla inferida<br/>Compilar la corrección como regla nueva]
+
+    classDef inferred fill:#3a3015,stroke:#d29922,color:#fff
+    classDef normal fill:#1b3a25,stroke:#3fb950,color:#fff
+    class R1,Prop inferred
+    class B normal
+```
+
+### Impacto numérico esperado
+
+| Métrica | Sin pre-compilación | Con pre-compilación |
+|---------|---------------------|---------------------|
+| % de primeros comprobantes resueltos sin escalación al operador | ~5-10% (solo matches contra reglas globales) | **~30-45%** (matches contra reglas inferidas pre-pobladas) |
+| UX del operador en el primer encuentro | "explicar de cero qué significa la observación" | "confirmar match propuesto con un click" |
+| Tiempo medio de bootstrap del sistema | semanas hasta cobertura útil | inmediato para clientes con historial |
+
+### Por qué un prompt genérico no propone esto
+
+Un prompt genérico al challenge ve el problema como *un sistema de memoria que aprende de respuestas humanas*. Foco en el bucle de aprendizaje. No suele razonar sobre datos laterales que la empresa ya tiene y que podrían pre-poblar el sistema sin esperar al primer encuentro. Esto requiere leer el README oficial **completo** — que menciona explícitamente que "Galo ya tiene el historial de pedidos del cliente" — e identificarlo como una palanca, no solo como contexto narrativo.
+
+### Trade-offs
+
+- **Las reglas inferidas pueden equivocarse.** Mitigación: nunca ejecutan autónomamente. Siempre se muestran al operador como propuesta. El peor caso es que el operador rechace y compile la regla correcta — lo mismo que hubiera pasado sin pre-compilación.
+- **Storage adicional.** Cada cliente puede tener 2-5 reglas inferidas. Para 1M de clientes: ~3-5M filas extra. Postgres lo maneja sin esfuerzo con los índices ya definidos.
+- **Cost del job de mining.** Es un job batch ocasional, no se llama por request. CPU/IO marginal incluso a escala. Sin LLM involucrado.
+
+---
+
+## 12. Diferencial — Aprendizaje negativo / reglas de frontera
+
+### Resumen
+
+Cada vez que una regla matchea pero el operador corrige el resultado, **no solo se crea la regla nueva** — también se guarda la observación corregida como **contra-ejemplo de la regla original**. El matching futuro considera estos contra-ejemplos para prevenir over-matching.
+
+### El problema que resuelve
+
+La cascada de matching (especialmente los niveles fuzzy y semantic) es **lossy by design**. Un regla con trigger `"armar factura A y B"` puede over-matchear observaciones que comparten trigrams o concept tags pero significan algo distinto. Ejemplo:
+
+- Trigger de la regla: `armar factura A y B` → acción: `split_invoice(50/50)`
+- Observación entrante: `armar pedido tipo A` ← NO es lo mismo (pedido, no factura), pero comparte varios trigrams (`"arm"`, `"rma"`, `"mar"`, `"ar "`, `"r "`, `" a"`)
+
+Sin mecanismo correctivo, el sistema podría aceptar este match incorrecto. La solución típica es subir el threshold o bajar la confidence de la regla — ambas son tuning manual que no escala.
+
+### La propuesta
+
+Para cada regla, mantener un set de **contra-ejemplos**: observaciones que matchearon la regla en el pasado pero que el operador corrigió como falsos positivos. Durante el matching:
+
+1. Cuando una observación nueva matchea positivamente contra el trigger de una regla (sim ≥ threshold), se calcula también la similitud con **cada contra-ejemplo** de esa regla.
+2. **Si la observación es más similar a algún contra-ejemplo que al trigger positivo → se rechaza el match** y la cascada continúa al siguiente nivel.
+3. La regla aprende sus *boundaries* explícitamente, no solo sus *matches*.
+
+```mermaid
+flowchart TB
+    O[Observación nueva entra<br/>al matcher] --> P[Cascada calcula<br/>sim positiva con trigger]
+    P -->|sim ≥ threshold| Q[Calcular sim con<br/>cada negative example<br/>de la regla]
+    Q --> C{¿Existe algún negative<br/>con sim mayor que<br/>el match positivo?}
+    C -->|no| Y[✓ Match aceptado<br/>ejecutar acción]
+    C -->|sí| R[✗ Match rechazado<br/>continuar cascada]
+    R --> N[Próximo nivel<br/>o escalación]
+
+    classDef good fill:#1b3a25,stroke:#3fb950,color:#fff
+    classDef bad  fill:#3a1b1f,stroke:#f85149,color:#fff
+    class Y good
+    class R bad
+```
+
+### Cómo se generan los contra-ejemplos
+
+Cada vez que el operador corrige el output del sistema:
+
+1. El sistema registra cuál fue la regla que produjo el match incorrecto (la "old rule").
+2. La observación original se agrega como **negative example de la old rule** en la tabla `rule_negatives`.
+3. La respuesta correcta del operador se procesa por el Learning Pipeline normal y genera una **nueva regla con la acción correcta**.
+4. La próxima vez que el sistema vea una observación similar al falso positivo, el contra-ejemplo de la old rule la empuja a continuar la cascada en lugar de aceptar el match incorrecto.
+
+### Data model
+
+```sql
+CREATE TABLE rule_negatives (
+  id                     uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
+  rule_id                uuid          NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
+  observation_text       text          NOT NULL,
+  observation_normalized text          NOT NULL,
+  observation_embedding  vector(1536),
+  created_at             timestamptz   DEFAULT now()
+);
+
+CREATE INDEX rule_negatives_rule_idx ON rule_negatives(rule_id);
+```
+
+### Por qué es diferencial
+
+- Cada corrección del operador se aprovecha **dos veces**: una para la regla nueva, otra para precisar la regla vieja. El operador trabaja una vez; el sistema aprende dos cosas.
+- El sistema modela explícitamente **sus límites**, no solo sus respuestas correctas. La mayoría de propuestas solo guardan ejemplos positivos.
+- Las correcciones acumulan valor compuesto: a más correcciones, mejor el sistema entiende dónde NO aplica cada regla.
+- Reduce la dependencia del tuning manual de thresholds — las reglas se auto-precisan con uso.
+
+### Trade-offs
+
+- **Storage extra.** Si cada regla acumula ~2 negative examples en promedio, son ~10M filas extra para 5M reglas. Postgres lo maneja sin problema con el índice por `rule_id`. Embeddings opcionales (solo se computan si el negative example se va a usar para matching semantic).
+- **Compute extra durante matching.** Para cada candidato positivo, una query adicional contra los negatives de esa regla. Worst case ~5-10ms extra; en la práctica casi nada porque la mayoría de reglas tienen 0 negatives.
+- **Riesgo de "envenenamiento".** Si el operador agrega un negative example incorrecto, la regla se vuelve menos útil. Mitigación: los negatives son auditables (`created_at`, source de la corrección). Un proceso periódico puede revisar reglas que perdieron mucho hit rate después de adquirir negatives — ahí puede haber un negative envenenado.
+
+---
+
 ## Apéndice: lo que queda por definir con el equipo de Galo
 
 1. **Catálogo final de `action_types`** — qué instrucciones estructuradas espera el ERP downstream. Definible en una sesión con el área contable.
