@@ -1,0 +1,59 @@
+%% Compiled Intelligence — flujo end-to-end de un comprobante
+%% Submission @Agusting22 — Galo Workshop Challenge
+
+flowchart TD
+    A[Comprobante por WhatsApp] --> B[Agente Galo existente:<br/>extrae monto, CBU, CUIT, banco, observación]
+    B --> C[Lookup Client DNA por CUIT]
+    C --> D{Observación<br/>requiere<br/>interpretación?}
+
+    D -->|No: texto plano| Z[Procesar normal<br/>sin tocar memoria]
+
+    D -->|Sí| E[Rules Engine — Nivel 1<br/>Exact match por hash]
+    E -->|Match| Y[Ejecutar acción<br/><$1ms · $0]
+
+    E -->|No match| F[Nivel 2<br/>Fuzzy match pg_trgm]
+    F -->|Match| Y2[Ejecutar acción<br/><5ms · $0]
+
+    F -->|No match| G[Nivel 3<br/>Semantic match pgvector]
+    G -->|Match| Y3[Ejecutar acción<br/>~100ms · ~$0.0001]
+
+    G -->|No match| H{Cliente tiene<br/>quirks_digest?}
+    H -->|Sí| I[LLM Haiku:<br/>inferir con DNA<br/>~1-2s · ~$0.003]
+    I -->|Infiere con certeza| Y4[Ejecutar acción]
+    I -->|No puede inferir| J
+
+    H -->|No| J[Escalación al operador humano<br/>NUNCA al cliente]
+    J --> K[Operador responde<br/>en lenguaje natural]
+    K --> Y5[Ejecutar acción]
+
+    Y --> S[Actualizar stats<br/>Client DNA]
+    Y2 --> S
+    Y3 --> S
+    Y4 --> S
+    Y5 --> S
+    Z --> S
+
+    %% Loop de aprendizaje asíncrono
+    I --> L[Learning Pipeline async]
+    K --> L
+    L --> M[Clasificar scope<br/>per-client | global]
+    M --> N[Extraer regla<br/>action_type + params]
+    N --> O[Compilar:<br/>normalizar + hash + embedding]
+    O --> P{Conflicto con<br/>regla existente?}
+    P -->|Mismo trigger,<br/>misma acción| Q[Merge: times_used++]
+    P -->|Mismo trigger,<br/>distinta acción| R[Marcar para<br/>revisión humana]
+    P -->|No| T[INSERT en rules<br/>+ índices]
+    T --> U{¿3+ reglas nuevas<br/>desde último digest?}
+    U -->|Sí| V[Recompilar quirks_digest<br/>~$0.001]
+    U -->|No| W[Done]
+    V --> W
+
+    classDef green fill:#dfd,stroke:#393
+    classDef yellow fill:#ffd,stroke:#993
+    classDef red fill:#fdd,stroke:#933
+    classDef gray fill:#eee,stroke:#666
+
+    class Y,Y2,Y3 green
+    class Y4 yellow
+    class Y5,J red
+    class Z gray
