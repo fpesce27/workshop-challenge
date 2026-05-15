@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS rules (
     action_json         TEXT NOT NULL,
     confidence          REAL NOT NULL DEFAULT 1.0,
     hit_count           INTEGER NOT NULL DEFAULT 0,
+    confirmation_count  INTEGER NOT NULL DEFAULT 0,
     created_at          TEXT NOT NULL,
     last_used_at        TEXT,
     last_modified_at    TEXT NOT NULL,
@@ -179,6 +180,8 @@ def row_to_rule(row: sqlite3.Row):
 
     data = dict(row)
     action_data = json.loads(data.pop("action_json"))
+    # confirmation_count es estado operacional — no forma parte del modelo Rule
+    data.pop("confirmation_count", None)
     # Recuperar los campos de tiempo (vienen como string ISO desde SQLite)
     created_at = datetime.fromisoformat(data.pop("created_at"))
     last_used_raw = data.pop("last_used_at")
