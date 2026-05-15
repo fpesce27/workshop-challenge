@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Base de datos generada en runtime
+second_brain.db
+second_brain.db-wal
+second_brain.db-shm
+*.db
+*.db-wal
+*.db-shm
+
+# Variables de entorno
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
