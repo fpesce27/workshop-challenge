@@ -1,0 +1,1358 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Compiled Intelligence — demo interactivo</title>
+  <style>
+    /* ============================================================
+       Tema y reset
+       ============================================================ */
+    :root {
+      --bg:           #0e1116;
+      --panel:        #161b22;
+      --panel-2:      #1f2530;
+      --line:         #2a3140;
+      --text:         #e6edf3;
+      --muted:        #7d8590;
+      --accent:       #58a6ff;
+      --accent-2:     #79c0ff;
+      --good:         #3fb950;
+      --good-bg:      rgba(63,185,80,0.10);
+      --bad:          #f85149;
+      --bad-bg:       rgba(248,81,73,0.10);
+      --warn:         #d29922;
+      --warn-bg:      rgba(210,153,34,0.12);
+      --code-bg:      #0b0f15;
+      --mono:         ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      --sans:         -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre { font-family: var(--mono); font-size: 13px; }
+    button { font-family: inherit; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ============================================================
+       Header
+       ============================================================ */
+    header {
+      border-bottom: 1px solid var(--line);
+      padding: 18px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+    .brand h1 { margin: 0; font-size: 18px; letter-spacing: 0.2px; }
+    .brand p  { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
+    .header-links { display: flex; gap: 18px; font-size: 12.5px; }
+
+    /* ============================================================
+       Layout principal — 3 columnas
+       ============================================================ */
+    main {
+      display: grid;
+      grid-template-columns: 360px 1fr 320px;
+      gap: 18px;
+      padding: 18px 28px 32px;
+      max-width: 1480px;
+      margin: 0 auto;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+    }
+    .card h3 {
+      margin: 0 0 6px;
+      font-size: 13.5px;
+      font-weight: 600;
+    }
+
+    /* ============================================================
+       Comprobante (receipt card)
+       ============================================================ */
+    .receipt {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 14px;
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    .receipt .row {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px dashed var(--line);
+    }
+    .receipt .row:last-of-type { border-bottom: none; }
+    .receipt .label { color: var(--muted); }
+    .receipt .value { color: var(--text); word-break: break-word; }
+    .receipt .obs {
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: var(--warn-bg);
+      border-left: 3px solid var(--warn);
+      border-radius: 4px;
+      font-size: 13.5px;
+    }
+    .receipt .obs .badge {
+      display: inline-block;
+      font-size: 10.5px;
+      color: var(--warn);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 4px;
+    }
+
+    .examples h3 { color: var(--text); margin-bottom: 8px; }
+    .example-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .example-btn {
+      text-align: left;
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      line-height: 1.35;
+      transition: background 120ms, border-color 120ms;
+    }
+    .example-btn:hover { background: var(--panel-2); border-color: var(--accent); }
+    .example-btn .ex-bank { color: var(--accent-2); font-family: var(--mono); font-size: 11.5px; }
+    .example-btn .ex-obs  { color: var(--text); font-style: italic; }
+    .example-btn .ex-hint { color: var(--muted); font-size: 11px; }
+
+    .custom-input {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .custom-input label { font-size: 12px; color: var(--muted); }
+    .custom-input input, .custom-input select, .custom-input textarea {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 5px;
+      padding: 7px 9px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+    }
+    .custom-input textarea { resize: vertical; min-height: 56px; }
+    .custom-input input:focus, .custom-input select:focus, .custom-input textarea:focus {
+      outline: 1px solid var(--accent);
+    }
+
+    .run-btn {
+      background: var(--accent);
+      color: #0b0f15;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 14px;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.2px;
+    }
+    .run-btn:hover { background: var(--accent-2); }
+    .reset-btn {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    .reset-btn:hover { background: var(--panel-2); color: var(--text); }
+
+    /* ============================================================
+       Cascada — los 3 niveles
+       ============================================================ */
+    .pre-cascade {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .pre-cascade .step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      opacity: 0.4;
+      transition: opacity 250ms;
+    }
+    .pre-cascade .step.active { opacity: 1; color: var(--text); }
+    .pre-cascade .step .icon {
+      display: inline-flex;
+      width: 16px; height: 16px;
+      align-items: center;
+      justify-content: center;
+      color: var(--good);
+    }
+
+    .cascade {
+      display: grid;
+      grid-template-columns: 1fr 22px 1fr 22px 1fr;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .level {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 8px;
+      padding: 14px 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: border-color 200ms, background 200ms, box-shadow 200ms;
+      min-height: 156px;
+    }
+    .level .lvl-tag {
+      font-size: 10.5px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .level .lvl-name {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .level .lvl-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .level .lvl-state {
+      margin-top: auto;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .level.searching {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(88,166,255,0.25), 0 0 24px rgba(88,166,255,0.10);
+      background: rgba(88,166,255,0.04);
+    }
+    .level.searching .lvl-state::before {
+      content: "● buscando…";
+      color: var(--accent);
+      animation: blink 1s infinite;
+    }
+    .level.matched {
+      border-color: var(--good);
+      background: var(--good-bg);
+    }
+    .level.matched .lvl-state { color: var(--good); }
+    .level.missed {
+      border-color: var(--line);
+      opacity: 0.55;
+    }
+    .level.missed .lvl-state { color: var(--bad); }
+
+    .arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 16px;
+      transition: color 200ms;
+    }
+    .arrow.active { color: var(--accent); }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.4; }
+    }
+
+    /* ============================================================
+       Resultado / Acción
+       ============================================================ */
+    .result {
+      min-height: 130px;
+    }
+    .result .placeholder {
+      color: var(--muted);
+      font-size: 13px;
+      font-style: italic;
+    }
+    .action-block {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .action-block .summary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13.5px;
+    }
+    .action-block .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .pill.exact    { background: var(--good-bg); color: var(--good); border: 1px solid var(--good); }
+    .pill.fuzzy    { background: rgba(88,166,255,0.10); color: var(--accent); border: 1px solid var(--accent); }
+    .pill.semantic { background: rgba(189,147,249,0.10); color: #bd93f9; border: 1px solid #bd93f9; }
+    .pill.none     { background: var(--bad-bg); color: var(--bad); border: 1px solid var(--bad); }
+    .pill.skipped  { background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
+
+    pre.json {
+      background: var(--code-bg);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      margin: 0;
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+    .json .k { color: #79c0ff; }
+    .json .s { color: #a5d6ff; }
+    .json .n { color: #d2a8ff; }
+    .json .b { color: var(--warn); }
+
+    .meta-row {
+      display: flex;
+      gap: 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta-row .v { color: var(--text); }
+
+    /* ============================================================
+       Stats panel
+       ============================================================ */
+    .stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 6px 0;
+      border-bottom: 1px dashed var(--line);
+      font-size: 13px;
+    }
+    .stat:last-of-type { border-bottom: none; }
+    .stat .label { color: var(--muted); }
+    .stat .value { font-family: var(--mono); }
+    .stat .value.good { color: var(--good); }
+
+    .bar {
+      display: flex;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      margin: 8px 0 4px;
+      background: var(--panel-2);
+    }
+    .bar > span { display: block; height: 100%; }
+    .bar .b-exact    { background: var(--good); }
+    .bar .b-fuzzy    { background: var(--accent); }
+    .bar .b-semantic { background: #bd93f9; }
+    .bar .b-none     { background: var(--bad); }
+
+    .legend {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 12px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    .legend .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    /* ============================================================
+       Client DNA panel
+       ============================================================ */
+    .dna .name { font-size: 14.5px; font-weight: 600; margin-bottom: 2px; }
+    .dna .cuit { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .dna .digest {
+      background: var(--code-bg);
+      border-left: 3px solid var(--accent);
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: #cdd9e5;
+      margin-bottom: 10px;
+    }
+    .dna .rules-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .dna .rule-item {
+      font-size: 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 7px 9px;
+    }
+    .dna .rule-item .trig {
+      color: var(--text);
+      font-family: var(--mono);
+    }
+    .dna .rule-item .act {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    /* ============================================================
+       Footer notes
+       ============================================================ */
+    footer {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 8px 28px 28px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    footer .note {
+      border: 1px dashed var(--line);
+      border-radius: 6px;
+      padding: 10px 12px;
+      background: rgba(210,153,34,0.04);
+    }
+
+    @media (max-width: 1180px) {
+      main { grid-template-columns: 1fr; }
+      .cascade { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>Compiled Intelligence — demo</h1>
+      <p>Memory system del agente de comprobantes de Galo · submission <a href="https://github.com/Agusting22">@Agusting22</a></p>
+    </div>
+    <nav class="header-links">
+      <a href="./README.md">README</a>
+      <a href="./ARCHITECTURE.md">ARCHITECTURE</a>
+      <a href="./schema.sql">schema.sql</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- ============================================================
+         Columna izquierda: comprobante editable + ejemplos
+         ============================================================ -->
+    <section class="col">
+
+      <div class="card">
+        <h2>Comprobante recibido</h2>
+        <div class="receipt" id="receiptCard">
+          <div class="row"><span class="label">Banco</span>      <span class="value" id="rcBank">—</span></div>
+          <div class="row"><span class="label">CUIT</span>       <span class="value" id="rcCuit">—</span></div>
+          <div class="row"><span class="label">Cliente</span>    <span class="value" id="rcName">—</span></div>
+          <div class="row"><span class="label">Monto</span>      <span class="value" id="rcAmount">—</span></div>
+          <div class="row"><span class="label">Fecha</span>      <span class="value" id="rcDate">—</span></div>
+          <div class="obs">
+            <span class="badge">observación — campo problemático</span>
+            <div id="rcObs">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card examples">
+        <h2>Probá un ejemplo</h2>
+        <div class="example-list" id="exampleList">
+          <!-- inyectado por JS en T04 -->
+        </div>
+      </div>
+
+      <div class="card custom-input">
+        <h2>O armá uno custom</h2>
+        <label>Cliente
+          <select id="customClient"></select>
+        </label>
+        <label>Banco
+          <select id="customBank">
+            <option>Mercado Pago</option>
+            <option>Banco Galicia</option>
+            <option>Banco Nación</option>
+            <option>Banco Santander</option>
+            <option>Banco del Chaco</option>
+          </select>
+        </label>
+        <label>Monto
+          <input id="customAmount" type="text" value="145000" />
+        </label>
+        <label>Observación
+          <textarea id="customObs" placeholder="ej: hacer 50/50 entre las dos razones sociales"></textarea>
+        </label>
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <button class="run-btn" id="runBtn">Procesar comprobante</button>
+          <button class="reset-btn" id="resetBtn">Reset stats</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================================
+         Columna centro: pre-cascada + 3 niveles + resultado
+         ============================================================ -->
+    <section class="col">
+
+      <div class="card">
+        <h2>Pre-procesamiento</h2>
+        <div class="pre-cascade" id="preCascade">
+          <div class="step" data-step="extract"><span class="icon">○</span> 1. Datos extraídos por el agente existente (monto, CUIT, banco, observación)</div>
+          <div class="step" data-step="dna"><span class="icon">○</span> 2. Lookup del Client DNA por CUIT</div>
+          <div class="step" data-step="classify"><span class="icon">○</span> 3. ¿La observación requiere interpretación?</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Cascada del Rules Engine</h2>
+        <div class="cascade">
+          <div class="level" id="lvl1" data-level="exact">
+            <div class="lvl-tag">Nivel 1</div>
+            <div class="lvl-name">Exact match</div>
+            <div class="lvl-desc">hash(normalize(obs)) → lookup B-tree</div>
+            <div class="lvl-state">&lt;1ms · $0</div>
+          </div>
+          <div class="arrow" id="arr1">→</div>
+          <div class="level" id="lvl2" data-level="fuzzy">
+            <div class="lvl-tag">Nivel 2</div>
+            <div class="lvl-name">Fuzzy match</div>
+            <div class="lvl-desc">trigramas pg_trgm · sim ≥ 0.3</div>
+            <div class="lvl-state">&lt;5ms · $0</div>
+          </div>
+          <div class="arrow" id="arr2">→</div>
+          <div class="level" id="lvl3" data-level="semantic">
+            <div class="lvl-tag">Nivel 3</div>
+            <div class="lvl-name">Semantic match</div>
+            <div class="lvl-desc">embedding → pgvector · cos ≥ 0.82</div>
+            <div class="lvl-state">~100ms · ~$0.0001</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card result">
+        <h2>Acción ejecutada</h2>
+        <div id="resultArea">
+          <p class="placeholder">Apretá <b>Procesar comprobante</b> o pickeá un ejemplo para ver la cascada en acción.</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================================
+         Columna derecha: stats + Client DNA
+         ============================================================ -->
+    <aside class="col">
+
+      <div class="card">
+        <h2>Stats acumuladas</h2>
+        <div class="stat"><span class="label">Total procesados</span><span class="value" id="statTotal">0</span></div>
+        <div class="stat"><span class="label">Costo total</span><span class="value" id="statCost">$0.0000</span></div>
+        <div class="stat"><span class="label">Latencia promedio</span><span class="value" id="statLatency">— ms</span></div>
+        <div class="stat"><span class="label">% sin LLM</span><span class="value good" id="statNoLLM">—</span></div>
+
+        <div class="bar" id="statBar" aria-label="Distribución por path">
+          <span class="b-exact"    style="width:0%"></span>
+          <span class="b-fuzzy"    style="width:0%"></span>
+          <span class="b-semantic" style="width:0%"></span>
+          <span class="b-none"     style="width:0%"></span>
+        </div>
+        <div class="legend">
+          <div><span class="dot" style="background:var(--good);"></span>exact <span id="legExact">0</span></div>
+          <div><span class="dot" style="background:var(--accent);"></span>fuzzy <span id="legFuzzy">0</span></div>
+          <div><span class="dot" style="background:#bd93f9;"></span>semantic <span id="legSemantic">0</span></div>
+          <div><span class="dot" style="background:var(--bad);"></span>sin match <span id="legNone">0</span></div>
+        </div>
+      </div>
+
+      <div class="card dna" id="dnaPanel">
+        <h2>Client DNA</h2>
+        <div id="dnaBody">
+          <p class="placeholder" style="color:var(--muted);font-style:italic;">Cargá un comprobante para ver el perfil del cliente.</p>
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <footer>
+    <div class="note">
+      Este demo simula la lógica del Rules Engine y el Learning Pipeline 100% en el browser. La normalización, hash, similitud de trigramas y match semántico están implementados en vanilla JS sobre datos en memoria. El nivel semántico usa un <b>mock honesto</b> basado en concept_tags + un mapa de sinónimos (en producción es <code>pgvector</code> + <code>text-embedding-3-small</code>). No se hacen llamadas a APIs externas.
+    </div>
+  </footer>
+
+  <script>
+    /* ====================================================================
+       Compiled Intelligence — Demo Engine
+       --------------------------------------------------------------------
+       Toda la lógica vive en este archivo. Cuatro partes:
+         1) Pure utilities (normalize, hash, trigrams, jaccard, conceptSet)
+         2) Seed data (clients, rules, presets, synonym map)
+         3) Cascade engine (matchExact, matchFuzzy, matchSemantic, resolve)
+         4) UI controllers (agregados en T04)
+       ==================================================================== */
+
+    // ====================================================================
+    // 1) Pure utilities
+    // ====================================================================
+
+    function normalize(text) {
+      if (!text) return "";
+      return text
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")  // strip combining marks (tildes)
+        .toLowerCase()
+        .replace(/[.,;:!?¡¿"'()&]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    // djb2 — determinista, browser-safe. Suficiente para el demo
+    // (en producción usamos SHA-1 de Postgres).
+    function hashString(s) {
+      let h = 5381;
+      for (let i = 0; i < s.length; i++) {
+        h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+      }
+      return (h >>> 0).toString(16).padStart(8, "0");
+    }
+
+    function trigrams(s) {
+      const padded = "  " + s + "  ";
+      const set = new Set();
+      for (let i = 0; i < padded.length - 2; i++) set.add(padded.slice(i, i + 3));
+      return set;
+    }
+
+    function jaccard(setA, setB) {
+      if (!setA.size && !setB.size) return 0;
+      let inter = 0;
+      for (const x of setA) if (setB.has(x)) inter++;
+      return inter / (setA.size + setB.size - inter);
+    }
+
+    // Mapa de sinónimos: token o frase corta → array de concept tags canónicos.
+    // En producción esto es un embedding real. Acá es un mock honesto y
+    // determinista para que el demo funcione sin llamadas externas.
+    const SYNONYM_MAP = {
+      // multi-word phrases (matched longest-first)
+      "partes iguales":   ["split", "equal"],
+      "mitad y mitad":    ["split", "equal", "half"],
+      "razon social":     ["razon_social"],
+      "razones sociales": ["razon_social"],
+      // single tokens
+      "dividir":   ["split"],
+      "partir":    ["split"],
+      "separar":   ["split"],
+      "mitad":     ["split", "half"],
+      "mitades":   ["split", "half"],
+      "iguales":   ["equal"],
+      "igual":     ["equal"],
+      "50/50":     ["split", "equal", "fifty"],
+      "60/40":     ["split", "sixty", "forty"],
+      "30/70":     ["split", "thirty", "seventy"],
+      "factura":   ["invoice"],
+      "facturas":  ["invoice"],
+      "fact":      ["invoice"],
+      "comprobante": ["invoice"],
+      "iva":       ["tax", "iva"],
+      "aparte":    ["separate"],
+      "sumar":     ["add"],
+      "monto":     ["amount"],
+      "tres":      ["three"],
+      "sucursales": ["branch"],
+      "sucursal":  ["branch"],
+      "distribuir": ["distribute"],
+      "asignar":   ["assign"],
+      "tech":      ["tech"],
+    };
+
+    function conceptSet(text, syn = SYNONYM_MAP) {
+      const norm = normalize(text);
+      const set = new Set();
+
+      // 1) Multi-word phrases primero (longest first)
+      const phrases = Object.keys(syn).filter((k) => k.includes(" "));
+      phrases.sort((a, b) => b.length - a.length);
+      let remaining = " " + norm + " ";
+      for (const p of phrases) {
+        if (remaining.indexOf(" " + p + " ") !== -1 ||
+            remaining.startsWith(p + " ") ||
+            remaining.endsWith(" " + p)) {
+          syn[p].forEach((t) => set.add(t));
+          remaining = remaining.split(p).join(" ");
+        }
+      }
+
+      // 2) Token-level
+      const tokens = remaining.split(/\s+/).filter(Boolean);
+      for (const tok of tokens) {
+        if (syn[tok]) {
+          syn[tok].forEach((t) => set.add(t));
+        } else if (/^[ab]$/.test(tok)) {
+          // 'a' y 'b' son significativos en el dominio (factura A, factura B)
+          set.add(tok);
+        } else if (/^\d+\/\d+(\/\d+)*$/.test(tok)) {
+          set.add("split");
+          set.add("ratio");
+        }
+      }
+      return set;
+    }
+
+    // ====================================================================
+    // 2) Seed data
+    // ====================================================================
+
+    const NEW_CLIENT_CUIT = "99-99999999-9";
+
+    const CLIENTS = {
+      "20-12345678-9": {
+        cuit: "20-12345678-9",
+        display_name: "ABC Distribuidora S.R.L.",
+        quirks_digest:
+          "Suele pedir factura tipo A y tipo B en proporción 50/50. Tiene dos razones sociales: ABC SRL para montos hasta 200.000 y ABC Holding para montos mayores. Los viernes pide sumar IVA como línea separada.",
+        razones_sociales: [
+          { name: "ABC SRL",     selection_rule: { type: "amount_lt",  value: 200000 } },
+          { name: "ABC Holding", selection_rule: { type: "amount_gte", value: 200000 } },
+        ],
+        bank_patterns: ["Banco Galicia", "Mercado Pago"],
+        total_receipts: 47,
+        resolution_rate: 0.92,
+      },
+      "30-87654321-2": {
+        cuit: "30-87654321-2",
+        display_name: "XYZ Mayorista S.A.",
+        quirks_digest:
+          "Cuando dice '50/50' significa dividir el monto en partes iguales y emitir dos comprobantes separados, no dividir el tipo de factura.",
+        razones_sociales: [
+          { name: "XYZ Mayorista S.A.", selection_rule: { type: "default" } },
+        ],
+        bank_patterns: ["Banco Nación"],
+        total_receipts: 23,
+        resolution_rate: 0.87,
+      },
+      "30-11223344-5": {
+        cuit: "30-11223344-5",
+        display_name: "LMN Foods S.A.",
+        quirks_digest:
+          "Tiene dos razones sociales: LMN Foods (default) y Tech S.A. Para montos mayores a 100.000 factura siempre a Tech S.A.",
+        razones_sociales: [
+          { name: "LMN Foods S.A.", selection_rule: { type: "default" } },
+          { name: "Tech S.A.",      selection_rule: { type: "amount_gte", value: 100000 } },
+        ],
+        bank_patterns: ["Banco Santander"],
+        total_receipts: 12,
+        resolution_rate: 0.81,
+      },
+    };
+
+    // Helper para construir reglas (calcula trigger_normalized y trigger_hash una sola vez)
+    function compileRule(input) {
+      const norm = normalize(input.trigger_text);
+      return Object.assign({}, input, {
+        trigger_normalized: norm,
+        trigger_hash: hashString(norm),
+      });
+    }
+
+    const RULES = [
+      // Per-client ABC: split invoice A/B
+      compileRule({
+        id: "r-abc-01",
+        client_cuit: "20-12345678-9",
+        trigger_text: "armar factura A y B",
+        concept_tags: ["split", "invoice", "a", "b"],
+        action_type: "split_invoice",
+        action_params: { parts: [{ ratio: 0.5, invoice_type: "A" }, { ratio: 0.5, invoice_type: "B" }] },
+        confidence: 0.98,
+        times_used: 42,
+      }),
+      // Per-client XYZ: 50/50 split amount
+      compileRule({
+        id: "r-xyz-01",
+        client_cuit: "30-87654321-2",
+        trigger_text: "50/50",
+        concept_tags: ["split", "equal", "fifty"],
+        action_type: "split_amount",
+        action_params: { parts: [0.5, 0.5] },
+        confidence: 0.96,
+        times_used: 19,
+      }),
+      // Per-client LMN: razón social por monto
+      compileRule({
+        id: "r-lmn-01",
+        client_cuit: "30-11223344-5",
+        trigger_text: "asignar a Tech S.A. por monto",
+        concept_tags: ["razon_social", "tech", "amount", "assign"],
+        action_type: "assign_razon_social",
+        action_params: { name: "Tech S.A.", selection_rule: { type: "amount_gte", value: 100000 } },
+        confidence: 0.94,
+        times_used: 8,
+      }),
+      // Global: factura A y B
+      compileRule({
+        id: "r-global-01",
+        client_cuit: null,
+        trigger_text: "factura A y B",
+        concept_tags: ["split", "invoice", "a", "b"],
+        action_type: "split_invoice",
+        action_params: { parts: [{ ratio: 0.5, invoice_type: "A" }, { ratio: 0.5, invoice_type: "B" }] },
+        confidence: 0.88,
+        times_used: 67,
+      }),
+      // Global: sumar IVA aparte
+      compileRule({
+        id: "r-global-02",
+        client_cuit: null,
+        trigger_text: "sumar IVA aparte",
+        concept_tags: ["tax", "iva", "separate", "add"],
+        action_type: "add_iva_line",
+        action_params: { rate: 0.21 },
+        confidence: 0.90,
+        times_used: 31,
+      }),
+    ];
+
+    const PRESETS = [
+      {
+        label: "Mercado Pago · ABC · «armar factura A y B»",
+        hint: "Texto idéntico al trigger ⇒ Nivel 1 (exact).",
+        bank: "Mercado Pago",
+        cuit: "20-12345678-9",
+        amount: 145000,
+        date: "15/05/2026 14:32",
+        observation: "armar factura A y B",
+      },
+      {
+        label: "Galicia · ABC · «fact. A & B»",
+        hint: "Variación tipográfica (typo) ⇒ Nivel 2 (fuzzy).",
+        bank: "Banco Galicia",
+        cuit: "20-12345678-9",
+        amount: 89000,
+        date: "15/05/2026 11:18",
+        observation: "fact. A & B",
+      },
+      {
+        label: "Nación · XYZ · «dividir en dos partes iguales»",
+        hint: "Sinónimo semántico de 50/50 ⇒ Nivel 3 (semantic).",
+        bank: "Banco Nación",
+        cuit: "30-87654321-2",
+        amount: 250000,
+        date: "15/05/2026 09:47",
+        observation: "dividir en dos partes iguales",
+      },
+      {
+        label: "Mercado Pago · ABC · «pongan IVA como línea aparte»",
+        hint: "Variación semántica de 'sumar IVA aparte' ⇒ Nivel 3 contra regla global.",
+        bank: "Mercado Pago",
+        cuit: "20-12345678-9",
+        amount: 76000,
+        date: "14/05/2026 17:05",
+        observation: "pongan IVA como línea aparte",
+      },
+      {
+        label: "Galicia · Nuevo Cliente · «30/40/30 entre tres sucursales»",
+        hint: "Sin match en ningún nivel ⇒ escalación al operador.",
+        bank: "Banco Galicia",
+        cuit: NEW_CLIENT_CUIT,
+        amount: 500000,
+        date: "15/05/2026 16:22",
+        observation: "distribuir 30/40/30 entre las tres sucursales",
+      },
+    ];
+
+    // ====================================================================
+    // 3) Cascade engine
+    // ====================================================================
+
+    function matchExact(cuit, hash, rules) {
+      const perClient = rules.find((r) => r.trigger_hash === hash && r.client_cuit === cuit);
+      if (perClient) return { rule: perClient, score: 1.0 };
+      const global = rules.find((r) => r.trigger_hash === hash && r.client_cuit === null);
+      if (global) return { rule: global, score: 1.0 };
+      return null;
+    }
+
+    function matchFuzzy(cuit, normalized, rules, threshold = 0.3) {
+      const inputTri = trigrams(normalized);
+      let best = null;
+      const evaluate = (r) => {
+        const score = jaccard(inputTri, trigrams(r.trigger_normalized));
+        if (score >= threshold && (!best || score > best.score)) {
+          best = { rule: r, score };
+        }
+      };
+      for (const r of rules) if (r.client_cuit === cuit) evaluate(r);
+      if (best) return best;
+      for (const r of rules) if (r.client_cuit === null) evaluate(r);
+      return best;
+    }
+
+    function matchSemantic(cuit, conceptSetInput, rules, threshold = 0.5) {
+      let best = null;
+      const evaluate = (r) => {
+        const score = jaccard(conceptSetInput, new Set(r.concept_tags));
+        if (score >= threshold && (!best || score > best.score)) {
+          best = { rule: r, score };
+        }
+      };
+      for (const r of rules) if (r.client_cuit === cuit) evaluate(r);
+      if (best) return best;
+      for (const r of rules) if (r.client_cuit === null) evaluate(r);
+      return best;
+    }
+
+    function resolve(cuit, observation, rules = RULES) {
+      const norm = normalize(observation);
+      const hash = hashString(norm);
+
+      // Level 1
+      const exact = matchExact(cuit, hash, rules);
+      if (exact) {
+        return {
+          path: "exact", rule: exact.rule, score: exact.score,
+          normalized: norm, hash, latency_ms: 0.5, cost_usd: 0,
+          tried: { exact: true, fuzzy: false, semantic: false },
+        };
+      }
+
+      // Level 2
+      const fuzzy = matchFuzzy(cuit, norm, rules);
+      if (fuzzy) {
+        return {
+          path: "fuzzy", rule: fuzzy.rule, score: fuzzy.score,
+          normalized: norm, hash, latency_ms: 3, cost_usd: 0,
+          tried: { exact: true, fuzzy: true, semantic: false },
+        };
+      }
+
+      // Level 3
+      const concepts = conceptSet(observation);
+      const semantic = matchSemantic(cuit, concepts, rules);
+      if (semantic) {
+        return {
+          path: "semantic", rule: semantic.rule, score: semantic.score,
+          normalized: norm, hash, latency_ms: 80, cost_usd: 0.0001,
+          concepts: Array.from(concepts),
+          tried: { exact: true, fuzzy: true, semantic: true },
+        };
+      }
+
+      // Miss en los 3 niveles
+      return {
+        path: "none", rule: null, score: 0,
+        normalized: norm, hash, latency_ms: 80, cost_usd: 0.0001,
+        concepts: Array.from(concepts),
+        tried: { exact: true, fuzzy: true, semantic: true },
+      };
+    }
+
+    // ====================================================================
+    // 4) UI controllers
+    // ====================================================================
+
+    const stats = {
+      total: 0,
+      by_path: { exact: 0, fuzzy: 0, semantic: 0, none: 0 },
+      cost_total: 0,
+      latency_total: 0,
+    };
+    let isProcessing = false;
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    function fmtMoney(n) {
+      try {
+        return n.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
+      } catch {
+        return "$" + n;
+      }
+    }
+    function fmtCost(n) {
+      if (n === 0) return "$0";
+      return "$" + n.toFixed(4);
+    }
+    function pathLabel(p) {
+      return { exact: "EXACT MATCH", fuzzy: "FUZZY MATCH", semantic: "SEMANTIC MATCH", none: "SIN MATCH" }[p] || p;
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function jsonHighlight(obj) {
+      const json = JSON.stringify(obj, null, 2);
+      return escapeHtml(json)
+        .replace(/(&quot;(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\&])*?&quot;)(\s*:)/g, '<span class="k">$1</span>$2')
+        .replace(/:(\s*)(&quot;(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\&])*?&quot;)/g, ':$1<span class="s">$2</span>')
+        .replace(/\b(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/g, '<span class="n">$1</span>')
+        .replace(/\b(true|false|null)\b/g, '<span class="b">$1</span>');
+    }
+
+    function renderReceipt(rec) {
+      const client = CLIENTS[rec.cuit];
+      const name = client ? client.display_name : "Nuevo cliente (sin perfil previo)";
+      document.getElementById("rcBank").textContent = rec.bank;
+      document.getElementById("rcCuit").textContent = rec.cuit;
+      document.getElementById("rcName").textContent = name;
+      document.getElementById("rcAmount").textContent = fmtMoney(rec.amount);
+      document.getElementById("rcDate").textContent = rec.date;
+      document.getElementById("rcObs").textContent = rec.observation || "—";
+    }
+
+    function renderExamples() {
+      const list = document.getElementById("exampleList");
+      list.innerHTML = "";
+      PRESETS.forEach((p, i) => {
+        const btn = document.createElement("button");
+        btn.className = "example-btn";
+        btn.innerHTML =
+          `<div class="ex-bank">${escapeHtml(p.bank)} · ${escapeHtml(CLIENTS[p.cuit]?.display_name || "Nuevo cliente")}</div>` +
+          `<div class="ex-obs">«${escapeHtml(p.observation)}»</div>` +
+          `<div class="ex-hint">${escapeHtml(p.hint)}</div>`;
+        btn.addEventListener("click", () => loadPreset(i));
+        list.appendChild(btn);
+      });
+    }
+
+    function renderClientSelect() {
+      const sel = document.getElementById("customClient");
+      sel.innerHTML = "";
+      Object.values(CLIENTS).forEach((c) => {
+        const opt = document.createElement("option");
+        opt.value = c.cuit;
+        opt.textContent = `${c.display_name} · ${c.cuit}`;
+        sel.appendChild(opt);
+      });
+      const optNew = document.createElement("option");
+      optNew.value = NEW_CLIENT_CUIT;
+      optNew.textContent = "Nuevo cliente · " + NEW_CLIENT_CUIT;
+      sel.appendChild(optNew);
+    }
+
+    function renderClientDNA(cuit) {
+      const body = document.getElementById("dnaBody");
+      const client = CLIENTS[cuit];
+      if (!client) {
+        body.innerHTML =
+          `<p class="placeholder" style="color:var(--muted);font-style:italic;">` +
+          `Cliente nuevo — sin perfil previo. Después de la primera resolución, el Learning Pipeline crea el Client DNA.</p>`;
+        return;
+      }
+      const rules = RULES.filter((r) => r.client_cuit === cuit);
+      body.innerHTML =
+        `<div class="name">${escapeHtml(client.display_name)}</div>` +
+        `<div class="cuit">${client.cuit} · ${client.total_receipts} comprobantes previos · ${Math.round(client.resolution_rate * 100)}% resolución automática</div>` +
+        `<div class="digest">${escapeHtml(client.quirks_digest)}</div>` +
+        `<div class="rules-list">` +
+          (rules.length === 0
+            ? `<div style="font-size:11.5px;color:var(--muted);font-style:italic;">Sin reglas per-client compiladas todavía.</div>`
+            : rules.map((r) =>
+                `<div class="rule-item">` +
+                  `<div class="trig">«${escapeHtml(r.trigger_text)}»</div>` +
+                  `<div class="act">→ ${r.action_type} · usada ${r.times_used}× · conf ${r.confidence.toFixed(2)}</div>` +
+                `</div>`
+              ).join("")
+          ) +
+        `</div>`;
+    }
+
+    function resetCascadeVisuals() {
+      const defaults = { lvl1: "&lt;1ms · $0", lvl2: "&lt;5ms · $0", lvl3: "~100ms · ~$0.0001" };
+      ["lvl1", "lvl2", "lvl3"].forEach((id) => {
+        const el = document.getElementById(id);
+        el.classList.remove("searching", "matched", "missed");
+        el.querySelector(".lvl-state").innerHTML = defaults[id];
+      });
+      ["arr1", "arr2"].forEach((id) => document.getElementById(id).classList.remove("active"));
+      // Reset pre-cascade steps
+      const stepOriginals = {
+        extract:  '<span class="icon">○</span> 1. Datos extraídos por el agente existente (monto, CUIT, banco, observación)',
+        dna:      '<span class="icon">○</span> 2. Lookup del Client DNA por CUIT',
+        classify: '<span class="icon">○</span> 3. ¿La observación requiere interpretación?',
+      };
+      Object.entries(stepOriginals).forEach(([k, html]) => {
+        const el = document.querySelector(`[data-step="${k}"]`);
+        if (el) {
+          el.innerHTML = html;
+          el.classList.remove("active");
+        }
+      });
+    }
+
+    async function animateFlow(receipt, result) {
+      resetCascadeVisuals();
+
+      // Pre-cascade animation
+      const step1 = document.querySelector('[data-step="extract"]');
+      const step2 = document.querySelector('[data-step="dna"]');
+      const step3 = document.querySelector('[data-step="classify"]');
+
+      await sleep(120);
+      step1.classList.add("active");
+      step1.innerHTML = '<span class="icon">✓</span> 1. Datos extraídos por el agente existente (monto, CUIT, banco, observación)';
+      await sleep(220);
+
+      const client = CLIENTS[receipt.cuit];
+      step2.classList.add("active");
+      step2.innerHTML = client
+        ? `<span class="icon">✓</span> 2. Cliente reconocido: <b>${escapeHtml(client.display_name)}</b> · ${client.total_receipts} comprobantes previos`
+        : '<span class="icon">+</span> 2. Cliente nuevo — el sistema creará un perfil vacío';
+      await sleep(280);
+
+      step3.classList.add("active");
+      step3.innerHTML = '<span class="icon">✓</span> 3. Observación clasificada: <b>REQUIERE INTERPRETACIÓN</b> → entra al Rules Engine';
+      await sleep(280);
+
+      // Cascade animation
+      const levels = [
+        { id: "lvl1", path: "exact",    nextArrow: "arr1" },
+        { id: "lvl2", path: "fuzzy",    nextArrow: "arr2" },
+        { id: "lvl3", path: "semantic", nextArrow: null   },
+      ];
+
+      let matched = false;
+      for (let i = 0; i < levels.length; i++) {
+        const lv = levels[i];
+        const el = document.getElementById(lv.id);
+        el.classList.add("searching");
+        await sleep(430);
+        el.classList.remove("searching");
+
+        if (result.path === lv.path) {
+          el.classList.add("matched");
+          const detail = lv.path === "exact"
+            ? `hash match · ${result.hash.slice(0, 8)}`
+            : lv.path === "fuzzy"
+              ? `trigram sim ${result.score.toFixed(2)}`
+              : `cosine sim ${result.score.toFixed(2)} <span style="opacity:0.7">(mock)</span>`;
+          el.querySelector(".lvl-state").innerHTML =
+            `✓ ${detail}<br>${result.latency_ms}ms · ${fmtCost(result.cost_usd)}`;
+          matched = true;
+          break;
+        } else {
+          el.classList.add("missed");
+          el.querySelector(".lvl-state").innerHTML = "✗ no match";
+          if (lv.nextArrow) {
+            document.getElementById(lv.nextArrow).classList.add("active");
+          }
+          await sleep(180);
+        }
+      }
+
+      renderResult(receipt, result);
+
+      stats.total++;
+      stats.by_path[result.path]++;
+      stats.cost_total += result.cost_usd;
+      stats.latency_total += result.latency_ms;
+      updateStats();
+    }
+
+    function renderResult(receipt, result) {
+      const area = document.getElementById("resultArea");
+      if (result.path === "none") {
+        area.innerHTML =
+          `<div class="action-block">` +
+            `<div class="summary">` +
+              `<span class="pill none">${pathLabel(result.path)}</span>` +
+              `<span>Ningún nivel matcheó · costo cascada: ${fmtCost(result.cost_usd)} · latencia: ${result.latency_ms}ms</span>` +
+            `</div>` +
+            `<pre class="json">// Escalación al operador (NUNCA al cliente)
+// Inputs:
+//   observación  = ${JSON.stringify(receipt.observation)}
+//   cuit         = ${JSON.stringify(receipt.cuit)}
+//   normalizado  = ${JSON.stringify(result.normalized)}
+//   concept_set  = ${JSON.stringify(result.concepts || [])}
+//
+// Próximo paso:
+//   1. Mensajear al operador con contexto + Client DNA si existe.
+//   2. Operador responde en lenguaje natural.
+//   3. Learning Pipeline (async) compila la respuesta en regla nueva.
+//   4. La próxima vez que aparezca esta observación,
+//      matchea en Nivel 1 con costo 0 USD y &lt;1ms.</pre>` +
+          `</div>`;
+        return;
+      }
+      const r = result.rule;
+      const action = Object.assign({ type: r.action_type }, r.action_params);
+      area.innerHTML =
+        `<div class="action-block">` +
+          `<div class="summary">` +
+            `<span class="pill ${result.path}">${pathLabel(result.path)}</span>` +
+            `<span>Regla <code>${r.id}</code> · ${r.client_cuit ? "per-client" : "global"} · ${fmtCost(result.cost_usd)} · ${result.latency_ms}ms</span>` +
+          `</div>` +
+          `<div class="meta-row">` +
+            `<span>trigger: <span class="v">«${escapeHtml(r.trigger_text)}»</span></span>` +
+            `<span>conf: <span class="v">${r.confidence.toFixed(2)}</span></span>` +
+            `<span>usada: <span class="v">${r.times_used}×</span></span>` +
+          `</div>` +
+          `<div style="font-size:11.5px;color:var(--muted);margin:8px 0 4px;">Acción transmitida al ERP downstream:</div>` +
+          `<pre class="json">${jsonHighlight(action)}</pre>` +
+        `</div>`;
+    }
+
+    function updateStats() {
+      document.getElementById("statTotal").textContent = stats.total;
+      document.getElementById("statCost").textContent = "$" + stats.cost_total.toFixed(4);
+      document.getElementById("statLatency").textContent =
+        stats.total === 0 ? "— ms" : (stats.latency_total / stats.total).toFixed(1) + " ms";
+
+      const noLlmCount = stats.by_path.exact + stats.by_path.fuzzy + stats.by_path.semantic;
+      const noLlmPct = stats.total === 0 ? 0 : (noLlmCount / stats.total) * 100;
+      document.getElementById("statNoLLM").textContent = stats.total === 0 ? "—" : noLlmPct.toFixed(0) + "%";
+
+      const widths = stats.total === 0
+        ? { exact: 0, fuzzy: 0, semantic: 0, none: 0 }
+        : {
+            exact:    (stats.by_path.exact / stats.total) * 100,
+            fuzzy:    (stats.by_path.fuzzy / stats.total) * 100,
+            semantic: (stats.by_path.semantic / stats.total) * 100,
+            none:     (stats.by_path.none / stats.total) * 100,
+          };
+      document.querySelector("#statBar .b-exact").style.width    = widths.exact + "%";
+      document.querySelector("#statBar .b-fuzzy").style.width    = widths.fuzzy + "%";
+      document.querySelector("#statBar .b-semantic").style.width = widths.semantic + "%";
+      document.querySelector("#statBar .b-none").style.width     = widths.none + "%";
+
+      document.getElementById("legExact").textContent    = stats.by_path.exact;
+      document.getElementById("legFuzzy").textContent    = stats.by_path.fuzzy;
+      document.getElementById("legSemantic").textContent = stats.by_path.semantic;
+      document.getElementById("legNone").textContent     = stats.by_path.none;
+    }
+
+    function resetStats() {
+      stats.total = 0;
+      stats.by_path = { exact: 0, fuzzy: 0, semantic: 0, none: 0 };
+      stats.cost_total = 0;
+      stats.latency_total = 0;
+      updateStats();
+      resetCascadeVisuals();
+      document.getElementById("resultArea").innerHTML =
+        '<p class="placeholder">Apretá <b>Procesar comprobante</b> o pickeá un ejemplo para ver la cascada en acción.</p>';
+    }
+
+    function loadPreset(index) {
+      if (isProcessing) return;
+      const p = PRESETS[index];
+      document.getElementById("customBank").value   = p.bank;
+      document.getElementById("customClient").value = p.cuit;
+      document.getElementById("customAmount").value = p.amount;
+      document.getElementById("customObs").value    = p.observation;
+      renderReceipt(p);
+      renderClientDNA(p.cuit);
+      // Auto-run after a short pause so the user sees the receipt populate
+      setTimeout(() => runDemo(p), 280);
+    }
+
+    function buildReceiptFromCustom() {
+      return {
+        bank:        document.getElementById("customBank").value,
+        cuit:        document.getElementById("customClient").value,
+        amount:      parseInt(document.getElementById("customAmount").value, 10) || 0,
+        date:        new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+        observation: document.getElementById("customObs").value.trim(),
+      };
+    }
+
+    async function runDemo(receiptArg) {
+      if (isProcessing) return;
+      const receipt = receiptArg || buildReceiptFromCustom();
+      if (!receipt.observation) {
+        alert("Ingresá una observación primero.");
+        return;
+      }
+      isProcessing = true;
+      document.getElementById("runBtn").disabled = true;
+
+      renderReceipt(receipt);
+      renderClientDNA(receipt.cuit);
+
+      const result = resolve(receipt.cuit, receipt.observation);
+      await animateFlow(receipt, result);
+
+      isProcessing = false;
+      document.getElementById("runBtn").disabled = false;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderExamples();
+      renderClientSelect();
+      const first = PRESETS[0];
+      document.getElementById("customBank").value   = first.bank;
+      document.getElementById("customClient").value = first.cuit;
+      document.getElementById("customAmount").value = first.amount;
+      document.getElementById("customObs").value    = first.observation;
+      renderReceipt(first);
+      renderClientDNA(first.cuit);
+      updateStats();
+
+      document.getElementById("runBtn").addEventListener("click", () => runDemo());
+      document.getElementById("resetBtn").addEventListener("click", resetStats);
+    });
+
+    // Expose for console testing (AC del demo):
+    //   _demo.resolve("20-12345678-9", "armar factura A y B")     → exact
+    //   _demo.resolve("20-12345678-9", "fact. A & B")             → fuzzy
+    //   _demo.resolve("30-87654321-2", "dividir en dos partes iguales") → semantic
+    //   _demo.resolve("20-12345678-9", "xxxabc completamente raro yyy") → none
+    window._demo = {
+      normalize, hashString, trigrams, jaccard, conceptSet,
+      CLIENTS, RULES, PRESETS, SYNONYM_MAP, NEW_CLIENT_CUIT,
+      matchExact, matchFuzzy, matchSemantic, resolve,
+    };
+    console.log("[demo] engine cargado. probá _demo.resolve(cuit, observación). Ejemplos en PRESETS.");
+  </script>
+
+</body>
+</html>

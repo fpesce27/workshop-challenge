@@ -4,6 +4,8 @@
 
 Un sistema de memoria que **compila** las respuestas del operador en reglas ejecutables determinísticas, en vez de almacenarlas como texto para que un LLM las interprete cada vez.
 
+> 👉 **Mirá el demo interactivo:** abrí [`demo.html`](./demo.html) en tu browser (doble click, sin instalar nada). Cargá un comprobante de ejemplo, ves la cascada animada, la regla que matcheó, el costo y la acción que se transmite al ERP downstream.
+
 ---
 
 ## El insight central
@@ -46,14 +48,11 @@ A los 90 días, >95% de los comprobantes se resuelven con lookup, costo cercano 
 
 | Archivo | Qué es |
 |---------|--------|
-| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | El documento completo. Decisiones, trade-offs, flujo end-to-end, edge cases, costos a escala, por qué no es RAG. |
-| [`schema.sql`](./schema.sql) | Schema Postgres con pg_trgm + pgvector. Tablas, índices, funciones de matching. |
-| [`types.ts`](./types.ts) | Tipos compartidos: `Rule`, `ClientDNA`, `Action`, action_types. |
-| [`rules-engine.ts`](./rules-engine.ts) | Cascada de 3 niveles (exact → fuzzy → semantic) con prioridad per-client. |
-| [`learning-pipeline.ts`](./learning-pipeline.ts) | Pipeline asíncrono: clasifica scope, extrae regla, compila, persiste, actualiza Client DNA. |
-| [`flow.mmd`](./flow.mmd) | Diagrama Mermaid del flujo completo de un comprobante. |
-
-> El código TypeScript es **ilustrativo**: tipado y completo, pero no instalable (sin `package.json`). Muestra el approach, no es un sistema corriendo. El schema SQL es ejecutable tal cual sobre un Postgres con pg_trgm y pgvector habilitados.
+| [**`demo.html`**](./demo.html) | **Demo interactivo.** Vanilla JS, single file, sin build. Abrilo en cualquier browser y proba la cascada con comprobantes de ejemplo. La lógica de matching, similitud de trigramas y mock semántico está toda en JS sobre datos en memoria. |
+| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | El documento completo. Decisiones, trade-offs, flujo end-to-end, edge cases, costos a escala, por qué no es RAG. Con diagramas Mermaid embebidos. |
+| [`schema.sql`](./schema.sql) | Schema Postgres real con `pg_trgm` + `pgvector`. Tablas, índices, funciones de matching. Ejecutable tal cual sobre un Postgres con las extensiones habilitadas. |
+| [`types.ts`](./types.ts) | Tipos compartidos: `Rule`, `ClientDNA`, `Action`, action_types. Referencia conceptual del modelo de datos. |
+| [`flow.mmd`](./flow.mmd) | Diagrama Mermaid del flujo end-to-end (versión standalone, también embebido en ARCHITECTURE.md). |
 
 ---
 

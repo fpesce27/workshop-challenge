@@ -77,6 +77,50 @@ Todo lo demás es determinístico.
 
 ## 3. Los cuatro componentes
 
+El sistema tiene cuatro componentes que operan en conjunto. El modelo de datos persistente es compacto — cuatro tablas con relaciones bien definidas:
+
+```mermaid
+erDiagram
+    CLIENT_DNA ||--o{ RULES : "tiene"
+    CLIENT_DNA ||--o{ INTERACTIONS : "genera"
+    RULES ||--o{ INTERACTIONS : "matchea"
+    RULES ||--o{ CONFLICTS : "puede tener"
+
+    CLIENT_DNA {
+        text cuit PK
+        text quirks_digest
+        jsonb razones_sociales
+        jsonb bank_patterns
+        int total_receipts
+        numeric resolution_rate
+    }
+    RULES {
+        uuid id PK
+        text client_cuit FK "NULL = global"
+        text trigger_normalized
+        text trigger_hash
+        vector trigger_embedding
+        text action_type
+        jsonb action_params
+        numeric confidence
+        boolean active
+    }
+    INTERACTIONS {
+        uuid id PK
+        text client_cuit FK
+        text observation
+        text resolution_path
+        uuid matched_rule_id FK
+        numeric cost_usd
+    }
+    CONFLICTS {
+        uuid id PK
+        uuid existing_rule_id FK
+        jsonb attempted_rule
+        boolean resolved
+    }
+```
+
 ### 3.1 Rules Engine — cascada de matching
 
 Primera línea de procesamiento. Recibe `(cuit, observacion)` y devuelve `Rule | null`. Funciona como un lookup en tres niveles **ordenados de más barato a más caro**. Se corta en el primer match.
@@ -112,6 +156,27 @@ type Rule = {
   created_at: Date;
   active: boolean;
 };
+```
+
+**Decisión visual de la cascada:**
+
+```mermaid
+flowchart TD
+    A[Observación llega<br/>con CUIT del cliente] --> B[normalize:<br/>lowercase, sin tildes,<br/>sin puntuación]
+    B --> C[hash SHA-1 del normalizado]
+    C --> D{match_exact?<br/>B-tree sobre trigger_hash<br/>ORDER BY cuit NULLS LAST}
+    D -->|HIT| E[Ejecutar acción<br/>menos de 1ms · 0 USD]
+    D -->|MISS| F{match_fuzzy?<br/>pg_trgm similarity ≥ 0.3<br/>índice GIN}
+    F -->|HIT| G[Ejecutar acción<br/>menos de 5ms · 0 USD]
+    F -->|MISS| H[Generar embedding<br/>text-embedding-3-small<br/>~0.0001 USD]
+    H --> I{match_semantic?<br/>pgvector cosine ≥ 0.82<br/>índice IVFFlat}
+    I -->|HIT| J[Ejecutar acción<br/>~100ms · ~0.0001 USD]
+    I -->|MISS| K[null → escalar a:<br/>LLM con DNA o operador]
+
+    classDef green fill:#1b3a25,stroke:#3fb950,color:#fff
+    classDef red   fill:#3a1b1f,stroke:#f85149,color:#fff
+    class E,G,J green
+    class K red
 ```
 
 ### 3.2 Client DNA — perfil estructurado por cliente
@@ -156,7 +221,50 @@ Costo total del pipeline por aprendizaje: ~USD 0.001-0.002. A 10 aprendizajes nu
 
 ## 4. Flujo end-to-end de un comprobante
 
-Ver [`flow.mmd`](./flow.mmd) para el diagrama. Resumen narrativo:
+El intercambio entre los componentes en una sola toma:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor C as Cliente
+    participant W as Bot Galo (WhatsApp)
+    participant E as Extractor existente
+    participant R as Rules Engine
+    participant DB as Postgres
+    participant L as LLM (Haiku)
+    participant O as Operador
+    participant P as Learning Pipeline (async)
+
+    C->>W: comprobante (imagen)
+    W->>E: parsear imagen
+    E-->>W: cuit, monto, banco, observación
+    W->>R: resolve(cuit, observación)
+    R->>DB: SELECT client_dna WHERE cuit=$1
+    DB-->>R: ClientDNA
+    R->>DB: cascada match_exact → fuzzy → semantic
+    alt Hit en algún nivel
+        DB-->>R: Rule
+        R-->>W: Action
+    else Miss en los 3 niveles
+        opt Cliente tiene quirks_digest
+            R->>L: inferir(obs, digest)
+            L-->>R: Action o null
+        end
+        opt LLM no infiere
+            R->>O: pregunta al operador
+            O-->>R: respuesta en lenguaje natural
+        end
+        R-->>W: Action (vía LLM u operador)
+        R->>+P: encolar interacción para compilar
+        P->>L: clasificar scope + extraer regla
+        L-->>P: rule compilada
+        P->>DB: INSERT rule + UPDATE Client DNA
+        deactivate P
+    end
+    W-->>C: confirmación
+```
+
+Ver también [`flow.mmd`](./flow.mmd) para un diagrama de flujo alternativo. Resumen narrativo:
 
 **Momento 0.** Llega imagen del comprobante por WhatsApp. **(Galo existente)**
 
@@ -249,6 +357,17 @@ Update del Client DNA usa `UPDATE ... SET total_receipts = total_receipts + 1` (
 
 Con la asunción de **~1000 comprobantes/día** (según el contexto que tiene Galo hoy):
 
+A medida que el sistema acumula reglas compiladas, el porcentaje de comprobantes que se resuelve sin LLM crece y el costo por unidad tiende a cero:
+
+```mermaid
+xychart-beta
+    title "% de comprobantes resueltos sin LLM (cobertura de reglas compiladas)"
+    x-axis ["Sem 1", "Sem 2", "Sem 4", "Sem 6", "Sem 8", "Sem 10", "Sem 12"]
+    y-axis "% sin LLM" 0 --> 100
+    bar [18, 41, 73, 85, 92, 95, 96]
+    line [18, 41, 73, 85, 92, 95, 96]
+```
+
 ### Costo por comprobante según escenario
 
 | Escenario | % a día 90 | Costo | Latencia |
@@ -320,6 +439,38 @@ La diferencia no es cosmética. RAG y Compiled Intelligence resuelven el mismo p
 **RAG dice:** "Guardo todo como texto, y cada vez que necesito algo, busco lo más relevante y le pido al LLM que lo interprete." Retrieval + interpretación. El LLM es el cerebro; la DB es la memoria.
 
 **Compiled Intelligence dice:** "Convierto todo en reglas ejecutables, y cada vez que necesito algo, ejecuto la regla directamente." Compilación + ejecución. La DB es el cerebro; el LLM es un compilador que se usa para aprender y después se apaga.
+
+```mermaid
+flowchart LR
+    subgraph RAG["Sistema RAG tradicional"]
+        direction TB
+        R1[Observación llega] --> R2[Embed la query]
+        R2 --> R3[Vector search top-K]
+        R3 --> R4[Inyectar contexto al prompt]
+        R4 --> R5[LLM interpreta y decide]
+        R5 --> R6[Acción]
+        R7["💰 cada query 0.003-0.01 USD<br/>⏱️ latencia 500ms - 2s<br/>📈 costo lineal con el uso"]
+    end
+
+    subgraph CI["Compiled Intelligence"]
+        direction TB
+        C1[Observación llega] --> C2{Exact match?}
+        C2 -->|95% casos a día 90| C3[Acción]
+        C2 -->|miss| C4{Fuzzy match?}
+        C4 -->|hit| C3
+        C4 -->|miss| C5{Semantic match?}
+        C5 -->|hit| C3
+        C5 -->|miss · 1-2% casos| C6[LLM o operador]
+        C6 -.async.-> C7[Compilar regla]
+        C7 -.próxima vez.-> C2
+        C8["💰 95% casos 0 USD<br/>⏱️ latencia 1-5ms<br/>📉 costo decrece con el uso"]
+    end
+
+    classDef costly fill:#3a1b1f,stroke:#f85149,color:#fff
+    classDef cheap  fill:#1b3a25,stroke:#3fb950,color:#fff
+    class R7 costly
+    class C8 cheap
+```
 
 | Dimensión | RAG | Compiled Intelligence |
 |-----------|-----|----------------------|
