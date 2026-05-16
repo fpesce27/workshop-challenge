@@ -4,26 +4,30 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Compiled Intelligence — demo interactivo</title>
+  <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABGUlEQVR4AcSQPUsDQRCGn43ZJH4RRRHFRhFR0gkmRdDiEGKnrYWNjY3/ydpeUVCIhViICGKtiHeRExREvVxznuvmLIybgxMDZtkZdmfmfXZmU1alqKzK/J8tBYp2lga0I4f/AciMQGbi34qPGlMtLo1TLI8a0a9rC6BsjTFXGo6yUgrSErK5Lvx6QG9fOoo3OwOgyA9ksW891jdnWV2bYmOrwExhiMnpfpZXJhCiWY75iQK35lFaGCE/KPXZ5+7mjQf3lZfngHunjlIfPwhGB3B5/ojvhVxdPHF6XONw12Fn+5rqgcPZiavFQtv3bgGAoEfPmuvWw5sN0liJADjas6nu243qRIvpAN4DRRgmaqOCWECU+aXrPOATAAD//3EF3R4AAAAGSURBVAMAYR5bwZZsA8sAAAAASUVORK5CYII=" />
   <style>
     /* ============================================================
        Tema y reset
        ============================================================ */
     :root {
-      --bg:           #0e1116;
-      --panel:        #161b22;
-      --panel-2:      #1f2530;
-      --line:         #2a3140;
-      --text:         #e6edf3;
-      --muted:        #7d8590;
-      --accent:       #58a6ff;
-      --accent-2:     #79c0ff;
-      --good:         #3fb950;
-      --good-bg:      rgba(63,185,80,0.10);
-      --bad:          #f85149;
-      --bad-bg:       rgba(248,81,73,0.10);
-      --warn:         #d29922;
-      --warn-bg:      rgba(210,153,34,0.12);
-      --code-bg:      #0b0f15;
+      /* Paleta Galo · light theme */
+      --bg:           #F5F3EE;   /* cream — page background */
+      --panel:        #FBFAF7;   /* off-white — cards on top of bg */
+      --panel-2:      #F0EDEA;   /* slightly recessed — nested blocks */
+      --line:         #D7E0D8;   /* soft green-gray border */
+      --text:         #27301F;   /* dark forest — body text */
+      --muted:        #3F4633;   /* darker — better contrast on cream */
+      --accent:       #27301F;   /* dark forest — buttons bg, emphasis */
+      --accent-2:     #3F4633;   /* hover / secondary emphasis */
+      --lime:         #E6FE7C;   /* Galo signature lime — for pills/punch */
+      --on-accent:    #FBFAF7;   /* text/icons on top of --accent */
+      --good:         #4d8a4d;   /* forest green — succeeded match */
+      --good-bg:      rgba(77,138,77,0.12);
+      --bad:          #C04545;   /* warm red — escalation */
+      --bad-bg:       rgba(192,69,69,0.10);
+      --warn:         #B8862A;   /* amber — caution */
+      --warn-bg:      rgba(184,134,42,0.12);
+      --code-bg:      #F0EDEA;   /* slightly recessed for code blocks */
       --mono:         ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
       --sans:         -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
     }
@@ -33,12 +37,12 @@
       background: var(--bg);
       color: var(--text);
       font-family: var(--sans);
-      font-size: 14px;
-      line-height: 1.5;
+      font-size: 15px;
+      line-height: 1.55;
       -webkit-font-smoothing: antialiased;
     }
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: var(--accent-2); text-decoration-thickness: 2px; }
     code, pre { font-family: var(--mono); font-size: 13px; }
     button { font-family: inherit; cursor: pointer; }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -55,6 +59,24 @@
       gap: 24px;
     }
     .brand h1 { margin: 0; font-size: 18px; letter-spacing: 0.2px; }
+    .brand .tagline {
+      margin: 6px 0 2px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.1px;
+    }
+    .brand .tagline .hl {
+      background: var(--lime);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .brand .tagline .dot {
+      color: var(--muted);
+      font-weight: 400;
+      margin: 0 6px;
+    }
     .brand p  { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
     .header-links { display: flex; gap: 18px; font-size: 12.5px; }
 
@@ -83,12 +105,12 @@
       padding: 14px 16px;
     }
     .card h2 {
-      margin: 0 0 10px;
-      font-size: 12px;
-      font-weight: 600;
+      margin: 0 0 12px;
+      font-size: 13px;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--muted);
+      letter-spacing: 1px;
+      color: var(--text);
     }
     .card h3 {
       margin: 0 0 6px;
@@ -178,7 +200,7 @@
 
     .run-btn {
       background: var(--accent);
-      color: #0b0f15;
+      color: var(--on-accent);
       border: none;
       border-radius: 6px;
       padding: 9px 14px;
@@ -231,59 +253,110 @@
       align-items: stretch;
     }
     .level {
-      border: 1px solid var(--line);
-      background: var(--panel-2);
-      border-radius: 8px;
-      padding: 14px 14px 12px;
+      position: relative;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 16px 16px 14px;
       display: flex;
       flex-direction: column;
       gap: 6px;
-      transition: border-color 200ms, background 200ms, box-shadow 200ms;
-      min-height: 156px;
+      transition: border-color 220ms, background 220ms, box-shadow 220ms, transform 220ms;
+      min-height: 168px;
     }
     .level .lvl-tag {
-      font-size: 10.5px;
-      color: var(--muted);
+      font-size: 11.5px;
+      color: var(--text);
       text-transform: uppercase;
-      letter-spacing: 0.8px;
+      letter-spacing: 1px;
+      font-weight: 700;
     }
     .level .lvl-name {
-      font-size: 15px;
-      font-weight: 600;
+      font-size: 16.5px;
+      font-weight: 700;
+      color: var(--text);
     }
     .level .lvl-desc {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--muted);
-      line-height: 1.4;
+      line-height: 1.45;
     }
     .level .lvl-state {
       margin-top: auto;
       font-family: var(--mono);
-      font-size: 11.5px;
+      font-size: 12px;
       color: var(--muted);
       display: flex;
       flex-direction: column;
       gap: 2px;
     }
 
+    /* Searching state — el nivel se "ilumina" en lime y se eleva */
     .level.searching {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px rgba(88,166,255,0.25), 0 0 24px rgba(88,166,255,0.10);
-      background: rgba(88,166,255,0.04);
+      border-color: var(--lime);
+      box-shadow: 0 0 0 4px rgba(230,254,124,0.55), 0 8px 24px rgba(39,48,31,0.12);
+      background: linear-gradient(180deg, #fdffe6 0%, var(--panel) 100%);
+      transform: translateY(-2px);
     }
-    .level.searching .lvl-state::before {
-      content: "● buscando…";
-      color: var(--accent);
-      animation: blink 1s infinite;
+    .level.searching::after {
+      content: "buscando…";
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      background: var(--lime);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+      animation: blink 0.9s infinite;
     }
+    .level.searching .lvl-state { color: var(--text); font-weight: 600; }
+    /* Matched state — borde verde grueso, fondo saturado, check arriba */
     .level.matched {
       border-color: var(--good);
-      background: var(--good-bg);
+      background: rgba(77,138,77,0.14);
+      box-shadow: 0 6px 20px rgba(77,138,77,0.18);
     }
-    .level.matched .lvl-state { color: var(--good); }
+    .level.matched::after {
+      content: "✓ match";
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      background: var(--good);
+      color: var(--on-accent);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+    }
+    .level.matched .lvl-state { color: var(--good); font-weight: 700; }
+    .level.matched .lvl-name { color: #1f5a1f; }
+    /* Missed state — claramente apagado, con etiqueta de descartado */
     .level.missed {
       border-color: var(--line);
+      background: var(--panel-2);
       opacity: 0.55;
+      filter: grayscale(40%);
+    }
+    .level.missed::after {
+      content: "× sin match";
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      background: var(--panel-2);
+      color: var(--bad);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+      border: 1px solid rgba(192,69,69,0.45);
     }
     .level.missed .lvl-state { color: var(--bad); }
 
@@ -292,10 +365,11 @@
       align-items: center;
       justify-content: center;
       color: var(--muted);
-      font-size: 16px;
-      transition: color 200ms;
+      font-size: 22px;
+      font-weight: 700;
+      transition: color 200ms, transform 200ms;
     }
-    .arrow.active { color: var(--accent); }
+    .arrow.active { color: var(--text); transform: scale(1.2); }
 
     @keyframes blink {
       0%, 100% { opacity: 1; }
@@ -334,8 +408,8 @@
       letter-spacing: 0.6px;
     }
     .pill.exact    { background: var(--good-bg); color: var(--good); border: 1px solid var(--good); }
-    .pill.fuzzy    { background: rgba(88,166,255,0.10); color: var(--accent); border: 1px solid var(--accent); }
-    .pill.semantic { background: rgba(189,147,249,0.10); color: #bd93f9; border: 1px solid #bd93f9; }
+    .pill.fuzzy    { background: rgba(39,48,31,0.10); color: var(--accent); border: 1px solid var(--accent); }
+    .pill.semantic { background: rgba(124,95,196,0.10); color: #7c5fc4; border: 1px solid #7c5fc4; }
     .pill.none     { background: var(--bad-bg); color: var(--bad); border: 1px solid var(--bad); }
     .pill.skipped  { background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
 
@@ -349,9 +423,9 @@
       font-size: 12.5px;
       line-height: 1.55;
     }
-    .json .k { color: #79c0ff; }
-    .json .s { color: #a5d6ff; }
-    .json .n { color: #d2a8ff; }
+    .json .k { color: #27301F; font-weight: 600; }
+    .json .s { color: #8a4a1f; }
+    .json .n { color: #5d3a8a; }
     .json .b { color: var(--warn); }
 
     .meta-row {
@@ -389,8 +463,8 @@
     }
     .bar > span { display: block; height: 100%; }
     .bar .b-exact    { background: var(--good); }
-    .bar .b-fuzzy    { background: var(--accent); }
-    .bar .b-semantic { background: #bd93f9; }
+    .bar .b-fuzzy    { background: var(--lime); }
+    .bar .b-semantic { background: #7c5fc4; }
     .bar .b-none     { background: var(--bad); }
 
     .legend {
@@ -411,17 +485,17 @@
     /* ============================================================
        Client DNA panel
        ============================================================ */
-    .dna .name { font-size: 14.5px; font-weight: 600; margin-bottom: 2px; }
-    .dna .cuit { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .dna .name { font-size: 16px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
+    .dna .cuit { font-family: var(--mono); font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
     .dna .digest {
       background: var(--code-bg);
       border-left: 3px solid var(--accent);
-      padding: 8px 10px;
+      padding: 10px 12px;
       border-radius: 4px;
-      font-size: 12.5px;
-      line-height: 1.5;
-      color: #cdd9e5;
-      margin-bottom: 10px;
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--text);
+      margin-bottom: 12px;
     }
     .dna .rules-list {
       display: flex;
@@ -429,20 +503,21 @@
       gap: 6px;
     }
     .dna .rule-item {
-      font-size: 12px;
+      font-size: 13px;
       background: var(--panel-2);
       border: 1px solid var(--line);
       border-radius: 5px;
-      padding: 7px 9px;
+      padding: 8px 10px;
     }
     .dna .rule-item .trig {
       color: var(--text);
       font-family: var(--mono);
+      font-weight: 600;
     }
     .dna .rule-item .act {
       color: var(--muted);
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 12px;
       margin-top: 2px;
     }
 
@@ -460,7 +535,7 @@
       border: 1px dashed var(--line);
       border-radius: 6px;
       padding: 10px 12px;
-      background: rgba(210,153,34,0.04);
+      background: rgba(184,134,42,0.04);
     }
 
     @media (max-width: 1180px) {
@@ -550,7 +625,7 @@
     .faq-item[open] summary::before {
       content: "−";
       background: var(--accent);
-      color: #0b0f15;
+      color: var(--on-accent);
       border-color: var(--accent);
     }
     .faq-item summary:hover { color: var(--accent); }
@@ -670,7 +745,7 @@
       border-left: 3px solid var(--accent);
       padding: 6px 14px;
       margin: 12px 0;
-      background: rgba(88,166,255,0.07);
+      background: rgba(39,48,31,0.07);
       border-radius: 0 4px 4px 0;
     }
     .viewer-body blockquote p { margin: 4px 0; }
@@ -756,7 +831,7 @@
     .viewer-body .fetch-error .open-tab-btn {
       display: inline-block;
       background: var(--accent);
-      color: #0b0f15;
+      color: var(--on-accent);
       padding: 8px 16px;
       border-radius: 6px;
       text-decoration: none;
@@ -780,7 +855,7 @@
        ============================================================ */
     .help-btn {
       background: var(--accent);
-      color: #0b0f15;
+      color: var(--on-accent);
       border: none;
       border-radius: 6px;
       padding: 7px 12px;
@@ -876,7 +951,7 @@
       width: 22px; height: 22px;
       border-radius: 50%;
       background: var(--accent);
-      color: #0b0f15;
+      color: var(--on-accent);
       font-size: 12px;
       font-weight: 700;
       text-align: center;
@@ -890,7 +965,7 @@
       font-size: 13px;
     }
     .drawer-content .tldr {
-      background: rgba(88,166,255,0.08);
+      background: rgba(39,48,31,0.08);
       border-left: 3px solid var(--accent);
       padding: 10px 14px;
       border-radius: 4px;
@@ -900,7 +975,7 @@
     }
     .drawer-content .tldr b { color: var(--accent-2); }
     .drawer-content .why {
-      background: rgba(210,153,34,0.07);
+      background: rgba(184,134,42,0.07);
       border-left: 3px solid var(--warn);
       padding: 10px 14px;
       border-radius: 4px;
@@ -968,8 +1043,8 @@
       font-weight: 700;
       letter-spacing: 0.4px;
     }
-    .badge-bad { background: rgba(248,81,73,0.15); color: var(--bad); border: 1px solid var(--bad); }
-    .badge-ok  { background: rgba(63,185,80,0.15); color: var(--good); border: 1px solid var(--good); }
+    .badge-bad { background: rgba(192,69,69,0.15); color: var(--bad); border: 1px solid var(--bad); }
+    .badge-ok  { background: rgba(77,138,77,0.15); color: var(--good); border: 1px solid var(--good); }
 
     /* RAG vs CI side-by-side */
     .side-by-side {
@@ -1031,13 +1106,13 @@
       align-items: center;
       padding: 0 8px;
       font-size: 11px;
-      color: #0b0f15;
+      color: var(--on-accent);
       font-weight: 600;
     }
     .funnel-row .cost { font-family: var(--mono); font-size: 11.5px; color: var(--muted); text-align: right; }
     .funnel-row.exact    .bar { background: var(--good);   width: 95%; }
-    .funnel-row.fuzzy    .bar { background: var(--accent); width: 16%; }
-    .funnel-row.semantic .bar { background: #bd93f9;       width: 6%; }
+    .funnel-row.fuzzy    .bar { background: var(--lime); color: var(--text); width: 16%; }
+    .funnel-row.semantic .bar { background: #7c5fc4;       width: 6%; }
     .funnel-row.escal    .bar { background: var(--bad);    width: 2%; min-width: 18px; }
 
     /* Loop de aprendizaje */
@@ -1062,14 +1137,14 @@
       width: 22px; height: 22px;
       border-radius: 50%;
       background: var(--accent);
-      color: #0b0f15;
+      color: var(--on-accent);
       font-size: 11px;
       font-weight: 700;
       text-align: center;
       line-height: 22px;
     }
-    .loop-step.first .n { background: var(--warn); color: #0b0f15; }
-    .loop-step.next .n { background: var(--good); color: #0b0f15; }
+    .loop-step.first .n { background: var(--warn); color: var(--on-accent); }
+    .loop-step.next .n { background: var(--good); color: var(--on-accent); }
     .loop-arrow {
       text-align: center;
       color: var(--muted);
@@ -1099,6 +1174,205 @@
     .decision .q { color: var(--accent-2); font-weight: 600; margin-bottom: 4px; }
     .decision .a { color: var(--text); }
     .decision .r { color: var(--muted); font-size: 11.5px; margin-top: 4px; font-style: italic; }
+
+    /* ============================================================
+       Hero "Cómo funciona en 30 segundos" — visible al entrar
+       ============================================================ */
+    .hero {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 24px 28px 8px;
+    }
+    .hero-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .hero-head h2 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0.2px;
+    }
+    .hero-head h2 .kbd {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      background: var(--lime);
+      border: 1px solid var(--lime);
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-left: 8px;
+      vertical-align: middle;
+      font-weight: 700;
+    }
+    .hero-head .hero-sub {
+      color: var(--muted);
+      font-size: 13px;
+      max-width: 560px;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    .hero-card {
+      position: relative;
+      background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 18px 16px 16px;
+      min-height: 168px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .hero-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+    }
+    .hero-card.problem::before  { background: var(--bad); }
+    .hero-card.idea::before     { background: var(--warn); }
+    .hero-card.cascade::before  { background: var(--accent); }
+    .hero-card.result::before   { background: var(--good); }
+    .hero-card .hc-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .hero-card.problem .hc-num  { color: var(--bad);    border-color: rgba(192,69,69,0.4); }
+    .hero-card.idea .hc-num     { color: var(--warn);   border-color: rgba(184,134,42,0.4); }
+    .hero-card.cascade .hc-num  { color: var(--accent); border-color: rgba(39,48,31,0.4); }
+    .hero-card.result .hc-num   { color: var(--good);   border-color: rgba(77,138,77,0.4); }
+    .hero-card .hc-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-top: 2px;
+    }
+    .hero-card .hc-body {
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .hero-card .hc-body b { color: var(--accent-2); }
+    .hero-card.problem .hc-body b { color: #8a2a2a; }
+    .hero-card.idea .hc-body b    { color: #5a4615; }
+    .hero-card.result .hc-body b  { color: #275927; }
+    .hero-card .hc-foot {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.3px;
+    }
+    .hero-card .hc-chip {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .hero-card.problem .hc-chip { background: rgba(192,69,69,0.10);  color: #8a2a2a; border-color: rgba(192,69,69,0.45); }
+    .hero-card.idea .hc-chip    { background: var(--lime);            color: var(--text); border-color: var(--lime); }
+    .hero-card.cascade .hc-chip { background: rgba(39,48,31,0.08);    color: var(--text); border-color: rgba(39,48,31,0.45); }
+    .hero-card.result .hc-chip  { background: rgba(77,138,77,0.12);   color: #275927; border-color: rgba(77,138,77,0.45); }
+    .hero-cascade-mini {
+      display: flex;
+      align-items: stretch;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .hero-cascade-mini .lvl {
+      flex: 1;
+      text-align: center;
+      padding: 6px 4px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: var(--code-bg);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+    .hero-cascade-mini .lvl b {
+      display: block;
+      color: var(--text);
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+    .hero-cascade-mini .lvl.l1 { border-top: 2px solid var(--good); }
+    .hero-cascade-mini .lvl.l2 { border-top: 3px solid var(--lime); }
+    .hero-cascade-mini .lvl.l3 { border-top: 2px solid #7c5fc4; }
+    .hero-cta {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .hero-cta .hc-msg {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .hero-cta .hc-msg b { color: var(--text); }
+    .hero-cta .hc-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .hero-cta button {
+      background: var(--accent);
+      color: var(--on-accent);
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 120ms;
+    }
+    .hero-cta button.ghost {
+      background: transparent;
+      color: var(--accent-2);
+      border: 1px solid var(--line);
+    }
+    .hero-cta button:hover { background: var(--accent-2); }
+    .hero-cta button.ghost:hover { border-color: var(--accent-2); color: var(--text); }
+    @media (max-width: 1100px) {
+      .hero-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .hero-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -1106,6 +1380,7 @@
   <header>
     <div class="brand">
       <h1>Compiled Intelligence — demo</h1>
+      <div class="tagline">Pregunta una vez al <span class="hl">operador</span>.<span class="dot">·</span>Nunca al cliente.<span class="dot">·</span>Aprende para siempre.</div>
       <p>Memory system del agente de comprobantes de Galo · submission <a href="https://github.com/Agusting22">@Agusting22</a></p>
     </div>
     <nav class="header-links">
@@ -1116,7 +1391,79 @@
     </nav>
   </header>
 
-  <main>
+  <!-- ============================================================
+       Hero: "Cómo funciona en 30 segundos" — primero que se ve
+       ============================================================ -->
+  <section class="hero" aria-label="Cómo funciona, resumen visual">
+    <div class="hero-head">
+      <h2>Cómo funciona <span class="kbd">30 seg</span></h2>
+      <div class="hero-sub">Resumen visual antes de tirar ejemplos. Para el detalle completo con diagramas, abrí el panel <b>📖 ¿Cómo funciona?</b></div>
+    </div>
+
+    <div class="hero-grid">
+
+      <article class="hero-card problem">
+        <span class="hc-num">1</span>
+        <div class="hc-title">El problema</div>
+        <div class="hc-body">
+          El cliente manda comprobantes con notas ambiguas <b>todas las semanas</b>. Si el bot le pregunta dos veces lo mismo, se ofende.
+        </div>
+        <div class="hc-foot">
+          <span class="hc-chip">«50/50»</span>
+          <span class="hc-chip">«factura A y B»</span>
+        </div>
+      </article>
+
+      <article class="hero-card idea">
+        <span class="hc-num">2</span>
+        <div class="hc-title">La idea</div>
+        <div class="hc-body">
+          En vez de re-leer texto con IA cada vez (RAG), <b>compilamos</b> la respuesta del operador en una regla determinística. Se aprende <b>una vez</b>.
+        </div>
+        <div class="hc-foot">
+          <span class="hc-chip">compilar ≠ interpretar</span>
+        </div>
+      </article>
+
+      <article class="hero-card cascade">
+        <span class="hc-num">3</span>
+        <div class="hc-title">3 niveles, del más barato al más caro</div>
+        <div class="hero-cascade-mini" aria-hidden="true">
+          <div class="lvl l1"><b>Exacta</b>hash<br/>&lt;1ms</div>
+          <div class="lvl l2"><b>Aproximada</b>trigramas<br/>&lt;5ms</div>
+          <div class="lvl l3"><b>Semántica</b>embedding<br/>~100ms</div>
+        </div>
+        <div class="hc-foot">
+          <span class="hc-chip">corta al primer match</span>
+        </div>
+      </article>
+
+      <article class="hero-card result">
+        <span class="hc-num">4</span>
+        <div class="hc-title">Resultado a día 90</div>
+        <div class="hc-body">
+          <b>~95% sin LLM</b>, latencia &lt;5ms, $0 por query habitual. Nuevo se escala al <b>operador</b>, nunca al cliente.
+        </div>
+        <div class="hc-foot">
+          <span class="hc-chip">$0.20 / día</span>
+          <span class="hc-chip">1000 recibos/día</span>
+        </div>
+      </article>
+
+    </div>
+
+    <div class="hero-cta">
+      <div class="hc-msg">
+        ¿Querés ver el detalle? <b>Tirá un ejemplo abajo</b> y mirá la cascada en vivo, o abrí el panel con explicación completa.
+      </div>
+      <div class="hc-actions">
+        <button id="heroOpenDrawer" type="button">📖 Ver explicación completa</button>
+        <button class="ghost" id="heroJumpDemo" type="button">↓ Saltar al demo</button>
+      </div>
+    </div>
+  </section>
+
+  <main id="mainDemo">
 
     <!-- ============================================================
          Columna izquierda: comprobante editable + ejemplos
@@ -1242,8 +1589,8 @@
         </div>
         <div class="legend">
           <div><span class="dot" style="background:var(--good);"></span>exacta <span id="legExact">0</span></div>
-          <div><span class="dot" style="background:var(--accent);"></span>aproximada <span id="legFuzzy">0</span></div>
-          <div><span class="dot" style="background:#bd93f9;"></span>semántica <span id="legSemantic">0</span></div>
+          <div><span class="dot" style="background:var(--lime); border:1px solid var(--line);"></span>aproximada <span id="legFuzzy">0</span></div>
+          <div><span class="dot" style="background:#7c5fc4;"></span>semántica <span id="legSemantic">0</span></div>
           <div><span class="dot" style="background:var(--bad);"></span>sin coincidencia <span id="legNone">0</span></div>
         </div>
       </div>
@@ -1455,7 +1802,7 @@
     <div class="drawer-content">
 
       <!-- ====== Meta-nota: diferenciación ====== -->
-      <section style="background: rgba(210,153,34,0.07); border-left: 3px solid var(--warn); padding: 14px 18px; border-radius: 6px; margin-bottom: 26px;">
+      <section style="background: rgba(184,134,42,0.07); border-left: 3px solid var(--warn); padding: 14px 18px; border-radius: 6px; margin-bottom: 26px;">
         <div style="font-size:11px; color:var(--warn); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; font-weight:700;">Nota honesta del autor</div>
         <p style="margin:0; font-size:13px; line-height:1.6;">La arquitectura central de esta submission — <i>"compilar respuestas humanas en reglas reutilizables"</i> — es la respuesta esperable que cualquier IA moderna le da a este prompt. Para diferenciarnos, sumamos <b>tres ideas que un prompt genérico no propone</b> porque requieren leer el contexto específico de Galo. Ver la sección <b>§7. Diferenciales</b> al final de este panel.</p>
       </section>
@@ -2442,6 +2789,15 @@
       closeBtn.addEventListener("click", closeDrawer);
       backdrop.addEventListener("click", closeDrawer);
 
+      // Hero CTA buttons
+      const heroOpenDrawer = document.getElementById("heroOpenDrawer");
+      const heroJumpDemo   = document.getElementById("heroJumpDemo");
+      if (heroOpenDrawer) heroOpenDrawer.addEventListener("click", openDrawer);
+      if (heroJumpDemo) heroJumpDemo.addEventListener("click", () => {
+        const el = document.getElementById("mainDemo");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+
       // File viewer modal (intercepta clicks en README / ARCHITECTURE / schema.sql)
       const viewerOverlay   = document.getElementById("viewerOverlay");
       const viewerTitle     = document.getElementById("viewerTitle");
@@ -2716,6 +3072,8 @@
   <!-- Embedded file contents (fallback when fetch() blocked on file://). Synced at commit time. -->
   <script type="text/plain" id="embed-README">
 # Compiled Intelligence
+
+> **Pregunta una vez al operador. Nunca al cliente. Aprende para siempre.**
 
 **Submission de [@Agusting22](https://github.com/Agusting22) — Workshop Challenge Galo · Second Brain**
 

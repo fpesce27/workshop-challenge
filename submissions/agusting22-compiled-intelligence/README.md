@@ -1,5 +1,7 @@
 # Compiled Intelligence
 
+> **Pregunta una vez al operador. Nunca al cliente. Aprende para siempre.**
+
 **Submission de [@Agusting22](https://github.com/Agusting22) — Workshop Challenge Galo · Second Brain**
 
 Un sistema de memoria que **compila** las respuestas del operador en reglas ejecutables determinísticas, en vez de almacenarlas como texto para que un LLM las interprete cada vez.
