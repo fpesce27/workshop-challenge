@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(superpowers:executing-plans)",
+      "Skill(superpowers:executing-plans:*)",
+      "Bash(uv init *)",
+      "Bash(uv add *)",
+      "Bash(mkdir -p src/second_brain tests scripts obsidian_vault/clientes obsidian_vault/globales \"obsidian_vault/pendientes-revision/promociones\" \"obsidian_vault/pendientes-revision/invalidaciones\")",
+      "Bash(touch src/second_brain/__init__.py src/second_brain/main.py src/second_brain/models.py src/second_brain/engine.py src/second_brain/normalizer.py src/second_brain/compiler.py src/second_brain/promoter.py src/second_brain/invalidator.py src/second_brain/obsidian_writer.py src/second_brain/watcher.py src/second_brain/db.py tests/__init__.py tests/test_engine.py tests/test_normalizer.py tests/test_compiler.py tests/test_promotion.py scripts/seed_demo.py scripts/simulate_traffic.py scripts/watch_vault.py obsidian_vault/_index.md)",
+      "Bash(uv run *)",
+      "Bash(git rm *)",
+      "Bash(rm \"submissions/pablo-ler21/main.py\")",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
